@@ -1,14 +1,20 @@
-import { MaterialIcons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
+import {
+  CircleHelp,
+  FileText,
+  Gauge,
+  ReceiptText,
+  Settings,
+  ShieldCheck,
+  type LucideIcon,
+} from 'lucide-react-native';
 import React from 'react';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { FinPilotColors } from '@/constants/finpilot';
 
-type TabIconName = keyof typeof MaterialIcons.glyphMap;
-
-function TabIcon({ name, color }: { name: TabIconName; color: string }) {
-  return <MaterialIcons name={name} size={24} color={color} />;
+function TabIcon({ icon: Icon, color }: { icon: LucideIcon; color: string }) {
+  return <Icon size={22} color={color} strokeWidth={2.3} />;
 }
 
 export default function TabLayout() {
@@ -35,45 +41,44 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Dashboard',
-          tabBarIcon: ({ color }) => <TabIcon name="dashboard" color={color} />,
+          tabBarIcon: ({ color }) => <TabIcon icon={Gauge} color={color} />,
         }}
       />
       <Tabs.Screen
         name="expenses"
         options={{
           title: 'Expenses',
-          tabBarIcon: ({ color }) => <TabIcon name="receipt-long" color={color} />,
+          tabBarIcon: ({ color }) => <TabIcon icon={ReceiptText} color={color} />,
         }}
       />
       <Tabs.Screen
         name="documents"
         options={{
           title: 'Docs',
-          tabBarIcon: ({ color }) => <TabIcon name="folder" color={color} />,
+          tabBarIcon: ({ color }) => <TabIcon icon={FileText} color={color} />,
         }}
       />
       <Tabs.Screen
         name="ask"
         options={{
           title: 'Ask',
-          tabBarIcon: ({ color }) => <TabIcon name="question-answer" color={color} />,
+          tabBarIcon: ({ color }) => <TabIcon icon={CircleHelp} color={color} />,
         }}
       />
       <Tabs.Screen
         name="purchase"
         options={{
           title: 'Check',
-          tabBarIcon: ({ color }) => <TabIcon name="verified-user" color={color} />,
+          tabBarIcon: ({ color }) => <TabIcon icon={ShieldCheck} color={color} />,
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
           title: 'Settings',
-          tabBarIcon: ({ color }) => <TabIcon name="settings" color={color} />,
+          tabBarIcon: ({ color }) => <TabIcon icon={Settings} color={color} />,
         }}
       />
     </Tabs>
   );
 }
-

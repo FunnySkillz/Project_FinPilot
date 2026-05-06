@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Alert } from 'react-native';
+import { Plus, Save, Trash2 } from 'lucide-react-native';
 
 import { AppScreen, Stack } from '@/components/finpilot/app-screen';
 import { CategoryBadge } from '@/components/finpilot/badges';
@@ -7,7 +8,7 @@ import { Card, SectionHeader } from '@/components/finpilot/card';
 import { Button, Field, SegmentedControl } from '@/components/finpilot/controls';
 import { ExpenseCard } from '@/components/finpilot/list-cards';
 import { Body, H1, Muted } from '@/components/finpilot/text';
-import { FinPilotColors } from '@/constants/finpilot';
+import { Box, Pressable } from '@/components/ui/gluestack';
 import { useFinPilot } from '@/context/finpilot-context';
 import type { Category, Expense, ExpenseCadence, ExpenseInput, ExpenseKind } from '@/types/finpilot';
 import { CADENCES, CATEGORIES, EXPENSE_KINDS, monthlyRecurringExpense } from '@/utils/finance';
@@ -110,16 +111,16 @@ export default function ExpensesScreen() {
         <Body>Track recurring pressure first. OCR and bank automation can plug into this model later.</Body>
       </Stack>
 
-      <View style={styles.summaryRow}>
-        <Card style={styles.summaryCard}>
+      <Box className="flex-row gap-2.5">
+        <Card className="flex-1">
           <Muted>Visible monthly load</Muted>
-          <Body style={styles.summaryValue}>{formatCurrency(monthlyTotal)}</Body>
+          <Body className="text-2xl font-extrabold leading-[30px]">{formatCurrency(monthlyTotal)}</Body>
         </Card>
-        <Card style={styles.summaryCard}>
+        <Card className="flex-1">
           <Muted>Expense records</Muted>
-          <Body style={styles.summaryValue}>{filteredExpenses.length}</Body>
+          <Body className="text-2xl font-extrabold leading-[30px]">{filteredExpenses.length}</Body>
         </Card>
-      </View>
+      </Box>
 
       <SectionHeader
         title="Expense list"
@@ -192,11 +193,13 @@ export default function ExpensesScreen() {
             />
             <Stack gap={8}>
               <Muted>Linked document</Muted>
-              <View style={styles.documentChips}>
+              <Box className="flex-row flex-wrap gap-2">
                 <Pressable
                   onPress={() => setForm((current) => ({ ...current, linkedDocumentId: undefined }))}
-                  style={[styles.documentChip, !form.linkedDocumentId && styles.activeDocumentChip]}>
-                  <Body style={!form.linkedDocumentId ? styles.activeDocumentText : styles.documentText}>None</Body>
+                  className={`rounded-fin border px-2.5 py-2 ${
+                    !form.linkedDocumentId ? 'border-fin-primary bg-fin-primary' : 'border-fin-border'
+                  }`}>
+                  <Body className={`text-xs ${!form.linkedDocumentId ? 'font-extrabold text-white' : ''}`}>None</Body>
                 </Pressable>
                 {state.documents.slice(0, 8).map((document) => {
                   const active = form.linkedDocumentId === document.id;
@@ -204,20 +207,24 @@ export default function ExpensesScreen() {
                     <Pressable
                       key={document.id}
                       onPress={() => setForm((current) => ({ ...current, linkedDocumentId: document.id }))}
-                      style={[styles.documentChip, active && styles.activeDocumentChip]}>
-                      <Body style={active ? styles.activeDocumentText : styles.documentText}>{document.title}</Body>
+                      className={`rounded-fin border px-2.5 py-2 ${
+                        active ? 'border-fin-primary bg-fin-primary' : 'border-fin-border'
+                      }`}>
+                      <Body className={`text-xs ${active ? 'font-extrabold text-white' : ''}`}>
+                        {document.title}
+                      </Body>
                     </Pressable>
                   );
                 })}
-              </View>
+              </Box>
             </Stack>
-            <Button onPress={submit} icon={editingId ? 'save' : 'add'}>
+            <Button onPress={submit} icon={editingId ? Save : Plus}>
               {editingId ? 'Save expense' : 'Add expense'}
             </Button>
             {editingId ? (
               <Button
                 variant="danger"
-                icon="delete"
+                icon={Trash2}
                 onPress={async () => {
                   await deleteExpense(editingId);
                   setEditingId(undefined);
@@ -247,56 +254,13 @@ export default function ExpensesScreen() {
           </Card>
         ) : (
           filteredExpenses.map((expense) => (
-            <View key={expense.id} style={styles.expenseWrap}>
+            <Box key={expense.id} className="gap-2">
               <ExpenseCard expense={expense} onPress={() => startEditing(expense)} />
               <CategoryBadge category={expense.category} />
-            </View>
+            </Box>
           ))
         )}
       </Stack>
     </AppScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  summaryRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  summaryCard: {
-    flex: 1,
-  },
-  summaryValue: {
-    fontSize: 24,
-    fontWeight: '800',
-    lineHeight: 30,
-  },
-  documentChips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  documentChip: {
-    borderColor: FinPilotColors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-  },
-  activeDocumentChip: {
-    backgroundColor: FinPilotColors.primary,
-    borderColor: FinPilotColors.primary,
-  },
-  documentText: {
-    fontSize: 12,
-  },
-  activeDocumentText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  expenseWrap: {
-    gap: 8,
-  },
-});
-

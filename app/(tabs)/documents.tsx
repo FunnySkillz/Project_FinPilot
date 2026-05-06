@@ -1,12 +1,14 @@
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { Alert } from 'react-native';
+import { Edit3, Plus, Upload, X } from 'lucide-react-native';
 
 import { AppScreen, Stack } from '@/components/finpilot/app-screen';
 import { Card, SectionHeader } from '@/components/finpilot/card';
 import { Button, Field, SegmentedControl } from '@/components/finpilot/controls';
 import { DocumentCard } from '@/components/finpilot/list-cards';
 import { Body, H1, Muted } from '@/components/finpilot/text';
+import { VStack } from '@/components/ui/gluestack';
 import { useFinPilot } from '@/context/finpilot-context';
 import type { Category, DocumentInput } from '@/types/finpilot';
 import { CATEGORIES } from '@/utils/finance';
@@ -102,17 +104,17 @@ export default function DocumentsScreen() {
         <Body>Upload PDFs or images, keep the metadata editable, and let FinPilot make them searchable.</Body>
       </Stack>
 
-      <View style={styles.actions}>
-        <Button onPress={upload} icon="upload-file" disabled={isPicking}>
+      <VStack className="gap-2.5">
+        <Button onPress={upload} icon={Upload} disabled={isPicking}>
           {isPicking ? 'Opening picker' : 'Upload PDF/image'}
         </Button>
         <Button
           variant="secondary"
-          icon={showManualForm ? 'close' : 'edit-note'}
+          icon={showManualForm ? X : Edit3}
           onPress={() => setShowManualForm((current) => !current)}>
           {showManualForm ? 'Close manual form' : 'Manual record'}
         </Button>
-      </View>
+      </VStack>
 
       {showManualForm ? (
         <Card>
@@ -163,7 +165,7 @@ export default function DocumentsScreen() {
               multiline
               placeholder="Anything useful for future questions"
             />
-            <Button onPress={addManual} icon="add">
+            <Button onPress={addManual} icon={Plus}>
               Add manual document
             </Button>
           </Stack>
@@ -199,10 +201,3 @@ export default function DocumentsScreen() {
     </AppScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  actions: {
-    gap: 10,
-  },
-});
-

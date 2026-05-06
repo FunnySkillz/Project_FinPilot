@@ -1,46 +1,30 @@
-import { MaterialIcons } from '@expo/vector-icons';
-import { PropsWithChildren } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, TextInputProps, View } from 'react-native';
+import { ComponentType, PropsWithChildren } from 'react';
+import { ScrollView, TextInputProps } from 'react-native';
 
 import { Body, Label, Muted } from '@/components/finpilot/text';
-import { FinPilotColors } from '@/constants/finpilot';
+import {
+  Button as GlueButton,
+  ButtonText,
+  Input,
+  Pressable,
+  Textarea,
+  VStack,
+} from '@/components/ui/gluestack';
+
+type IconComponent = ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
 
 type ButtonProps = PropsWithChildren<{
   onPress: () => void;
-  icon?: keyof typeof MaterialIcons.glyphMap;
-  variant?: 'primary' | 'secondary' | 'danger';
+  icon?: IconComponent;
+  variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
   disabled?: boolean;
 }>;
 
 export function Button({ children, onPress, icon, variant = 'primary', disabled = false }: ButtonProps) {
   return (
-    <Pressable
-      accessibilityRole="button"
-      disabled={disabled}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.button,
-        variant === 'secondary' && styles.secondaryButton,
-        variant === 'danger' && styles.dangerButton,
-        disabled && styles.disabled,
-        pressed && !disabled && styles.pressed,
-      ]}>
-      {icon ? (
-        <MaterialIcons
-          name={icon}
-          size={18}
-          color={variant === 'secondary' ? FinPilotColors.primary : '#FFFFFF'}
-        />
-      ) : null}
-      <Body
-        style={[
-          styles.buttonText,
-          variant === 'secondary' && styles.secondaryButtonText,
-          disabled && styles.disabledText,
-        ]}>
-        {children}
-      </Body>
-    </Pressable>
+    <GlueButton disabled={disabled} onPress={onPress} icon={icon} variant={variant}>
+      <ButtonText variant={variant}>{children}</ButtonText>
+    </GlueButton>
   );
 }
 
@@ -53,15 +37,11 @@ export function Field({
   helper?: string;
 }) {
   return (
-    <View style={styles.field}>
+    <VStack className="gap-1.5">
       <Label>{label}</Label>
-      <TextInput
-        placeholderTextColor="#8A948B"
-        style={[styles.input, props.multiline && styles.multilineInput, props.style]}
-        {...props}
-      />
+      {props.multiline ? <Textarea {...props} /> : <Input {...props} />}
       {helper ? <Muted>{helper}</Muted> : null}
-    </View>
+    </VStack>
   );
 }
 
@@ -75,7 +55,7 @@ export function SegmentedControl<T extends string>({
   onSelect: (value: T) => void;
 }) {
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-2 py-0.5">
       {values.map((value) => {
         const active = selected === value;
 
@@ -83,93 +63,14 @@ export function SegmentedControl<T extends string>({
           <Pressable
             key={value}
             onPress={() => onSelect(value)}
-            style={[styles.chip, active && styles.activeChip]}>
-            <Body style={[styles.chipText, active && styles.activeChipText]}>{value}</Body>
+            className={`min-h-[38px] rounded-fin border px-3 py-2 ${
+              active ? 'border-fin-primary bg-fin-primary' : 'border-fin-border bg-fin-surface'
+            }`}>
+            <Body className={`text-[13px] font-bold ${active ? 'text-white' : 'text-fin-text'}`}>{value}</Body>
           </Pressable>
         );
       })}
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  button: {
-    alignItems: 'center',
-    backgroundColor: FinPilotColors.primary,
-    borderRadius: 8,
-    flexDirection: 'row',
-    gap: 8,
-    justifyContent: 'center',
-    minHeight: 48,
-    paddingHorizontal: 14,
-  },
-  secondaryButton: {
-    backgroundColor: FinPilotColors.surfaceAlt,
-    borderColor: FinPilotColors.border,
-    borderWidth: 1,
-  },
-  dangerButton: {
-    backgroundColor: FinPilotColors.danger,
-  },
-  disabled: {
-    opacity: 0.5,
-  },
-  pressed: {
-    opacity: 0.82,
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontWeight: '800',
-    textAlign: 'center',
-  },
-  secondaryButtonText: {
-    color: FinPilotColors.primary,
-  },
-  disabledText: {
-    color: '#FFFFFF',
-  },
-  field: {
-    gap: 6,
-  },
-  input: {
-    backgroundColor: '#FFFFFF',
-    borderColor: FinPilotColors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    color: FinPilotColors.text,
-    fontSize: 15,
-    minHeight: 46,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  multilineInput: {
-    minHeight: 92,
-    textAlignVertical: 'top',
-  },
-  chips: {
-    gap: 8,
-    paddingVertical: 2,
-  },
-  chip: {
-    backgroundColor: '#FFFFFF',
-    borderColor: FinPilotColors.border,
-    borderRadius: 8,
-    borderWidth: 1,
-    minHeight: 38,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  activeChip: {
-    backgroundColor: FinPilotColors.primary,
-    borderColor: FinPilotColors.primary,
-  },
-  chipText: {
-    color: FinPilotColors.text,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  activeChipText: {
-    color: '#FFFFFF',
-  },
-});
 

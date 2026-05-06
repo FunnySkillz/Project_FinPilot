@@ -2,7 +2,9 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
+import '@/global.css';
 
+import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
 import { FinPilotProvider } from '@/context/finpilot-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
@@ -15,13 +17,15 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <FinPilotProvider>
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="document/[id]" options={{ title: 'Document Detail' }} />
-        </Stack>
-        <StatusBar style="dark" />
-      </FinPilotProvider>
+      <GluestackUIProvider>
+        <FinPilotProvider>
+          <Stack>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="document/[id]" options={{ title: 'Document Detail' }} />
+          </Stack>
+          <StatusBar style="dark" />
+        </FinPilotProvider>
+      </GluestackUIProvider>
     </ThemeProvider>
   );
 }

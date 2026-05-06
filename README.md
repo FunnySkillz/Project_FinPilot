@@ -11,6 +11,13 @@ The current MVP is local-first and backend-ready:
 - Grounded document Q&A placeholders that always state uncertainty
 - Purchase risk checks based on income, savings, fixed costs, and buffer targets
 
+## UI stack
+
+- gluestack-style local primitives for Box, Card, Button, Heading, Text, VStack, HStack, and form controls
+- NativeWind + Tailwind className styling for custom React Native components
+- Custom FinPilot theme tokens in `constants/finpilot.ts` as the design source of truth
+- lucide-react-native for all active app icons
+
 ## Run locally
 
 ```bash
@@ -36,4 +43,3 @@ npx expo export --platform web
 ## MVP boundary
 
 This version intentionally does not include bank sync, real OCR, real AI calls, auth, SteuerFuchs integration, or multi-user household support. Those should plug into the existing services layer later.
-

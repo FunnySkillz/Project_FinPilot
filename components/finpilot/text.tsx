@@ -1,78 +1,35 @@
 import { PropsWithChildren } from 'react';
-import { StyleSheet, Text, TextProps } from 'react-native';
+import type { TextProps } from 'react-native';
 
-import { FinPilotColors } from '@/constants/finpilot';
+import { Heading, Label as GlueLabel, MutedText, Text } from '@/components/ui/gluestack';
 
-type CopyProps = PropsWithChildren<TextProps>;
+type CopyProps = PropsWithChildren<TextProps & { className?: string }>;
 
-export function H1({ children, style, ...props }: CopyProps) {
+export function H1({ children, ...props }: CopyProps) {
   return (
-    <Text style={[styles.h1, style]} {...props}>
+    <Heading size="lg" {...props}>
       {children}
-    </Text>
+    </Heading>
   );
 }
 
-export function H2({ children, style, ...props }: CopyProps) {
+export function H2({ children, ...props }: CopyProps) {
   return (
-    <Text style={[styles.h2, style]} {...props}>
+    <Heading size="sm" {...props}>
       {children}
-    </Text>
+    </Heading>
   );
 }
 
-export function Body({ children, style, ...props }: CopyProps) {
-  return (
-    <Text style={[styles.body, style]} {...props}>
-      {children}
-    </Text>
-  );
+export function Body({ children, ...props }: CopyProps) {
+  return <Text {...props}>{children}</Text>;
 }
 
-export function Label({ children, style, ...props }: CopyProps) {
-  return (
-    <Text style={[styles.label, style]} {...props}>
-      {children}
-    </Text>
-  );
+export function Label({ children, ...props }: CopyProps) {
+  return <GlueLabel {...props}>{children}</GlueLabel>;
 }
 
-export function Muted({ children, style, ...props }: CopyProps) {
-  return (
-    <Text style={[styles.muted, style]} {...props}>
-      {children}
-    </Text>
-  );
+export function Muted({ children, ...props }: CopyProps) {
+  return <MutedText {...props}>{children}</MutedText>;
 }
-
-const styles = StyleSheet.create({
-  h1: {
-    color: FinPilotColors.text,
-    fontSize: 30,
-    fontWeight: '800',
-    lineHeight: 36,
-  },
-  h2: {
-    color: FinPilotColors.text,
-    fontSize: 18,
-    fontWeight: '700',
-    lineHeight: 24,
-  },
-  body: {
-    color: FinPilotColors.text,
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  label: {
-    color: FinPilotColors.text,
-    fontSize: 13,
-    fontWeight: '700',
-    lineHeight: 18,
-  },
-  muted: {
-    color: FinPilotColors.muted,
-    fontSize: 13,
-    lineHeight: 19,
-  },
-});
 

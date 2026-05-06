@@ -1,21 +1,23 @@
-import { MaterialIcons } from '@expo/vector-icons';
+import { ChevronRight } from 'lucide-react-native';
 import { PropsWithChildren } from 'react';
-import { Pressable, StyleSheet, View, ViewProps } from 'react-native';
+import type { ViewProps } from 'react-native';
 
 import { Body, H2, Muted } from '@/components/finpilot/text';
-import { FinPilotColors, shadow } from '@/constants/finpilot';
+import { Box, Card as GlueCard, HStack, Pressable, VStack } from '@/components/ui/gluestack';
+import { FinPilotColors } from '@/constants/finpilot';
 
 type CardProps = PropsWithChildren<
   ViewProps & {
     compact?: boolean;
+    className?: string;
   }
 >;
 
-export function Card({ children, style, compact = false, ...props }: CardProps) {
+export function Card({ children, className, compact = false, ...props }: CardProps) {
   return (
-    <View style={[styles.card, compact && styles.compact, style]} {...props}>
+    <GlueCard className={`${compact ? 'p-2.5' : ''} ${className ?? ''}`} {...props}>
       {children}
-    </View>
+    </GlueCard>
   );
 }
 
@@ -30,11 +32,22 @@ export function MetricCard({
   tone?: 'default' | 'safe' | 'warning' | 'danger';
   helper?: string;
 }) {
+  const toneClass =
+    tone === 'safe'
+      ? 'border-[#B7DFC8]'
+      : tone === 'warning'
+        ? 'border-[#E9D49D]'
+        : tone === 'danger'
+          ? 'border-[#E7B1B1]'
+          : '';
+
   return (
-    <Card style={[styles.metric, tone !== 'default' && styles[tone]]}>
-      <Muted>{label}</Muted>
-      <Body style={styles.metricValue}>{value}</Body>
-      {helper ? <Muted>{helper}</Muted> : null}
+    <Card className={`min-w-[150px] flex-1 ${toneClass}`}>
+      <VStack>
+        <Muted>{label}</Muted>
+        <Body className="text-2xl font-extrabold leading-[30px]">{value}</Body>
+        {helper ? <Muted>{helper}</Muted> : null}
+      </VStack>
     </Card>
   );
 }
@@ -49,63 +62,17 @@ export function SectionHeader({
   onAction?: () => void;
 }) {
   return (
-    <View style={styles.sectionHeader}>
+    <HStack className="justify-between">
       <H2>{title}</H2>
       {actionLabel && onAction ? (
-        <Pressable onPress={onAction} style={styles.headerAction}>
-          <Body style={styles.headerActionText}>{actionLabel}</Body>
-          <MaterialIcons name="chevron-right" size={18} color={FinPilotColors.primary} />
+        <Pressable onPress={onAction} className="min-h-[34px] flex-row items-center">
+          <Body className="font-bold text-fin-primary">{actionLabel}</Body>
+          <ChevronRight size={18} color={FinPilotColors.primary} />
         </Pressable>
-      ) : null}
-    </View>
+      ) : (
+        <Box />
+      )}
+    </HStack>
   );
 }
-
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: FinPilotColors.surface,
-    borderColor: FinPilotColors.border,
-    borderRadius: 8,
-    borderWidth: StyleSheet.hairlineWidth,
-    gap: 10,
-    padding: 14,
-    ...shadow,
-  },
-  compact: {
-    padding: 10,
-  },
-  metric: {
-    flex: 1,
-    minWidth: 150,
-  },
-  metricValue: {
-    color: FinPilotColors.text,
-    fontSize: 24,
-    fontWeight: '800',
-    lineHeight: 30,
-  },
-  safe: {
-    borderColor: '#B7DFC8',
-  },
-  warning: {
-    borderColor: '#E9D49D',
-  },
-  danger: {
-    borderColor: '#E7B1B1',
-  },
-  sectionHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  headerAction: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    minHeight: 34,
-  },
-  headerActionText: {
-    color: FinPilotColors.primary,
-    fontWeight: '700',
-  },
-});
 

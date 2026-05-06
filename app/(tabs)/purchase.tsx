@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { Alert } from 'react-native';
+import { ShieldCheck } from 'lucide-react-native';
 
 import { AppScreen, Stack } from '@/components/finpilot/app-screen';
 import { StatusBadge } from '@/components/finpilot/badges';
@@ -7,7 +8,7 @@ import { Card, MetricCard, SectionHeader } from '@/components/finpilot/card';
 import { Button, Field, SegmentedControl } from '@/components/finpilot/controls';
 import { PurchaseDecisionCard } from '@/components/finpilot/list-cards';
 import { Body, H1, Muted } from '@/components/finpilot/text';
-import { FinPilotColors } from '@/constants/finpilot';
+import { Box, HStack } from '@/components/ui/gluestack';
 import { useFinPilot } from '@/context/finpilot-context';
 import type { PurchaseDecision, PurchasePriority, PurchaseType } from '@/types/finpilot';
 import { calculateFinanceSummary } from '@/utils/finance';
@@ -69,10 +70,10 @@ export default function PurchaseScreen() {
         <Body>Run emotional purchases through your real cost base before money leaves the account.</Body>
       </Stack>
 
-      <View style={styles.metricGrid}>
+      <Box className="flex-row flex-wrap gap-2.5">
         <MetricCard label="Current fixed costs" value={formatCurrency(finance.fixedMonthly)} helper="from expenses" />
         <MetricCard label="Remaining cash flow" value={formatCurrency(finance.remainingMonthly)} helper="monthly" />
-      </View>
+      </Box>
 
       <Card>
         <Stack>
@@ -130,24 +131,24 @@ export default function PurchaseScreen() {
             keyboardType="decimal-pad"
             placeholder="4200"
           />
-          <Button onPress={submit} icon="verified-user">
+          <Button onPress={submit} icon={ShieldCheck}>
             Check purchase
           </Button>
         </Stack>
       </Card>
 
       {decision ? (
-        <Card style={styles.resultCard}>
-          <View style={styles.resultHeader}>
-            <Body style={styles.strong}>Current verdict</Body>
+        <Card className="border-fin-primary">
+          <HStack className="justify-between">
+            <Body className="font-extrabold">Current verdict</Body>
             <StatusBadge status={decision.status} />
-          </View>
+          </HStack>
           <Body>{decision.summary}</Body>
-          <View style={styles.metricGrid}>
+          <Box className="flex-row flex-wrap gap-2.5">
             <MetricCard label="Monthly impact" value={formatCurrency(decision.monthlyImpact)} />
             <MetricCard label="Buffer after" value={formatCurrency(decision.bufferAfterPurchase)} />
-          </View>
-          <Body style={styles.recommendation}>{decision.recommendation}</Body>
+          </Box>
+          <Body className="font-extrabold text-fin-primaryDark">{decision.recommendation}</Body>
         </Card>
       ) : null}
 
@@ -164,27 +165,3 @@ export default function PurchaseScreen() {
     </AppScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  metricGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  resultCard: {
-    borderColor: FinPilotColors.primary,
-  },
-  resultHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  strong: {
-    fontWeight: '800',
-  },
-  recommendation: {
-    color: FinPilotColors.primaryDark,
-    fontWeight: '800',
-  },
-});
-

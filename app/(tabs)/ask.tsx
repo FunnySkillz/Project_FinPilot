@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { Alert } from 'react-native';
+import { MessageCircleQuestion, Zap } from 'lucide-react-native';
 
 import { AppScreen, Stack } from '@/components/finpilot/app-screen';
 import { ConfidenceBadge } from '@/components/finpilot/badges';
 import { Card, SectionHeader } from '@/components/finpilot/card';
 import { Button, Field } from '@/components/finpilot/controls';
 import { Body, H1, Muted } from '@/components/finpilot/text';
-import { FinPilotColors } from '@/constants/finpilot';
+import { Box, HStack } from '@/components/ui/gluestack';
 import { useFinPilot } from '@/context/finpilot-context';
 import type { AiQuestion } from '@/types/finpilot';
 
@@ -56,7 +57,7 @@ export default function AskScreen() {
             multiline
             placeholder="Do I have Rechtsschutz for a EUR 400 speeding fine?"
           />
-          <Button onPress={() => ask()} icon="question-answer" disabled={isAsking}>
+          <Button onPress={() => ask()} icon={MessageCircleQuestion} disabled={isAsking}>
             {isAsking ? 'Checking documents' : 'Ask documents'}
           </Button>
         </Stack>
@@ -65,27 +66,27 @@ export default function AskScreen() {
       <Stack gap={8}>
         <Muted>Try one</Muted>
         {sampleQuestions.map((sample) => (
-          <Button key={sample} variant="secondary" icon="bolt" onPress={() => ask(sample)}>
+          <Button key={sample} variant="secondary" icon={Zap} onPress={() => ask(sample)}>
             {sample}
           </Button>
         ))}
       </Stack>
 
       {currentAnswer ? (
-        <Card style={styles.answerCard}>
-          <View style={styles.answerHeader}>
-            <Body style={styles.strong}>Answer</Body>
+        <Card className="border-fin-primary">
+          <HStack className="justify-between">
+            <Body className="font-extrabold">Answer</Body>
             <ConfidenceBadge confidence={currentAnswer.confidence} />
-          </View>
+          </HStack>
           <Body>{currentAnswer.answer}</Body>
-          <View style={styles.quoteBox}>
+          <Box className="gap-1.5 rounded-fin bg-fin-surfaceAlt p-2.5">
             <Muted>Relevant excerpt</Muted>
             <Body>{currentAnswer.excerpt}</Body>
-          </View>
+          </Box>
           <Muted>
             Based on document: {currentAnswer.documentTitle ?? 'No matching document'}.
           </Muted>
-          <Body style={styles.recommendation}>{currentAnswer.recommendation}</Body>
+          <Body className="font-extrabold text-fin-primaryDark">{currentAnswer.recommendation}</Body>
         </Card>
       ) : null}
 
@@ -98,7 +99,7 @@ export default function AskScreen() {
         ) : (
           state.questions.slice(0, 6).map((item) => (
             <Card key={item.id} compact>
-              <Body style={styles.strong}>{item.question}</Body>
+              <Body className="font-extrabold">{item.question}</Body>
               <Muted>{item.answer}</Muted>
             </Card>
           ))
@@ -107,28 +108,3 @@ export default function AskScreen() {
     </AppScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  answerCard: {
-    borderColor: FinPilotColors.primary,
-  },
-  answerHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  quoteBox: {
-    backgroundColor: FinPilotColors.surfaceAlt,
-    borderRadius: 8,
-    gap: 6,
-    padding: 10,
-  },
-  strong: {
-    fontWeight: '800',
-  },
-  recommendation: {
-    color: FinPilotColors.primaryDark,
-    fontWeight: '800',
-  },
-});
-

@@ -1,13 +1,14 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Linking, StyleSheet, View } from 'react-native';
+import { Alert, Linking } from 'react-native';
+import { ArrowLeft, ExternalLink, Save, Trash2 } from 'lucide-react-native';
 
 import { AppScreen, Stack } from '@/components/finpilot/app-screen';
 import { CategoryBadge, ConfidenceBadge } from '@/components/finpilot/badges';
 import { Card, SectionHeader } from '@/components/finpilot/card';
 import { Button, Field, SegmentedControl } from '@/components/finpilot/controls';
 import { Body, H1, Muted } from '@/components/finpilot/text';
-import { FinPilotColors } from '@/constants/finpilot';
+import { Box, HStack } from '@/components/ui/gluestack';
 import { useFinPilot } from '@/context/finpilot-context';
 import type { Category, DocumentInput, FinancialDocument } from '@/types/finpilot';
 import { CATEGORIES } from '@/utils/finance';
@@ -54,7 +55,7 @@ export default function DocumentDetailScreen() {
       <AppScreen>
         <Card>
           <Body>Document not found.</Body>
-          <Button onPress={() => router.back()} icon="arrow-back">
+          <Button onPress={() => router.back()} icon={ArrowLeft}>
             Go back
           </Button>
         </Card>
@@ -86,32 +87,34 @@ export default function DocumentDetailScreen() {
       <Stack gap={4}>
         <Muted>Document detail</Muted>
         <H1>{document.title}</H1>
-        <View style={styles.badges}>
+        <HStack className="flex-wrap gap-2">
           <CategoryBadge category={document.category} />
           {document.analysis ? <ConfidenceBadge confidence={document.analysis.confidence} /> : null}
-        </View>
+        </HStack>
       </Stack>
 
       <Card>
         <Stack>
-          <View style={styles.metaRow}>
+          <HStack className="justify-between">
             <Muted>Provider</Muted>
-            <Body style={styles.strong}>{document.provider ?? 'Not set'}</Body>
-          </View>
-          <View style={styles.metaRow}>
+            <Body className="shrink text-right font-extrabold">{document.provider ?? 'Not set'}</Body>
+          </HStack>
+          <HStack className="justify-between">
             <Muted>Amount</Muted>
-            <Body style={styles.strong}>{document.amount ? formatCurrency(document.amount) : 'Not set'}</Body>
-          </View>
-          <View style={styles.metaRow}>
+            <Body className="shrink text-right font-extrabold">
+              {document.amount ? formatCurrency(document.amount) : 'Not set'}
+            </Body>
+          </HStack>
+          <HStack className="justify-between">
             <Muted>Date</Muted>
-            <Body style={styles.strong}>{formatDate(document.documentDate)}</Body>
-          </View>
-          <View style={styles.metaRow}>
+            <Body className="shrink text-right font-extrabold">{formatDate(document.documentDate)}</Body>
+          </HStack>
+          <HStack className="justify-between">
             <Muted>File</Muted>
-            <Body style={styles.strong}>{document.fileName ?? 'Manual record'}</Body>
-          </View>
+            <Body className="shrink text-right font-extrabold">{document.fileName ?? 'Manual record'}</Body>
+          </HStack>
           {document.fileUri ? (
-            <Button variant="secondary" icon="open-in-new" onPress={() => Linking.openURL(document.fileUri!)}>
+            <Button variant="secondary" icon={ExternalLink} onPress={() => Linking.openURL(document.fileUri!)}>
               Open original file
             </Button>
           ) : null}
@@ -119,14 +122,14 @@ export default function DocumentDetailScreen() {
       </Card>
 
       {document.analysis ? (
-        <Card style={styles.analysisCard}>
+        <Card className="border-fin-primary">
           <Stack>
             <SectionHeader title="Placeholder analysis" />
             <Body>{document.analysis.summary}</Body>
-            <View style={styles.quoteBox}>
+            <Box className="gap-1.5 rounded-fin bg-fin-surfaceAlt p-2.5">
               <Muted>Relevant excerpt</Muted>
               <Body>{document.analysis.excerpt}</Body>
-            </View>
+            </Box>
             <Muted>Covered signals: {document.analysis.coveredRisks.join(', ') || 'None detected'}</Muted>
             <Muted>Warnings: {document.analysis.exclusions.join(', ') || 'No warnings detected'}</Muted>
           </Stack>
@@ -177,12 +180,12 @@ export default function DocumentDetailScreen() {
             onChangeText={(notes) => setForm((current) => current && { ...current, notes })}
             multiline
           />
-          <Button onPress={save} icon="save">
+          <Button onPress={save} icon={Save}>
             Save document
           </Button>
           <Button
             variant="danger"
-            icon="delete"
+            icon={Trash2}
             onPress={() => {
               Alert.alert('Delete document', 'Remove this document from the local vault?', [
                 { text: 'Cancel', style: 'cancel' },
@@ -203,31 +206,3 @@ export default function DocumentDetailScreen() {
     </AppScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  badges: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  metaRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  strong: {
-    flexShrink: 1,
-    fontWeight: '800',
-    textAlign: 'right',
-  },
-  analysisCard: {
-    borderColor: FinPilotColors.primary,
-  },
-  quoteBox: {
-    backgroundColor: FinPilotColors.surfaceAlt,
-    borderRadius: 8,
-    gap: 6,
-    padding: 10,
-  },
-});
-

@@ -1,11 +1,10 @@
 import { useRouter } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
 
 import { AppScreen, Stack } from '@/components/finpilot/app-screen';
 import { Card, MetricCard, SectionHeader } from '@/components/finpilot/card';
 import { DocumentCard, ExpenseCard } from '@/components/finpilot/list-cards';
 import { Body, H1, Muted } from '@/components/finpilot/text';
-import { FinPilotColors } from '@/constants/finpilot';
+import { Box, HStack, VStack } from '@/components/ui/gluestack';
 import { useFinPilot } from '@/context/finpilot-context';
 import { calculateFinanceSummary, categoryColor, categoryTotals, upcomingDeadlines } from '@/utils/finance';
 import { formatCurrency, formatDate, percent } from '@/utils/formatters';
@@ -28,7 +27,7 @@ export default function DashboardScreen() {
         <Body>Know what you pay, what is covered, and what you can afford.</Body>
       </Stack>
 
-      <View style={styles.metricGrid}>
+      <Box className="flex-row flex-wrap gap-2.5">
         <MetricCard label="Fixed costs" value={formatCurrency(summary.fixedMonthly)} helper="per month" />
         <MetricCard label="Variable costs" value={formatCurrency(summary.variableMonthly)} helper="per month" />
         <MetricCard label="Total expenses" value={formatCurrency(summary.totalMonthly)} helper="monthly load" />
@@ -38,11 +37,11 @@ export default function DashboardScreen() {
           helper="after recurring expenses"
           tone={summary.remainingMonthly > 1000 ? 'safe' : summary.remainingMonthly > 0 ? 'warning' : 'danger'}
         />
-      </View>
+      </Box>
 
-      <Card style={summary.remainingMonthly < 600 ? styles.warningCard : undefined}>
+      <Card className={summary.remainingMonthly < 600 ? 'border-fin-amber' : undefined}>
         <Muted>Risk signal</Muted>
-        <Body style={styles.strong}>
+        <Body className="font-extrabold">
           {summary.remainingMonthly < 0
             ? 'Critical: recurring costs exceed monthly income.'
             : summary.remainingMonthly < 600
@@ -65,20 +64,18 @@ export default function DashboardScreen() {
               const barWidth = percent(item.total, summary.totalMonthly);
 
               return (
-                <View key={item.category} style={styles.categoryRow}>
-                  <View style={styles.categoryHeader}>
-                    <Body style={styles.strong}>{item.category}</Body>
+                <VStack key={item.category} className="gap-1.5">
+                  <HStack className="justify-between">
+                    <Body className="font-extrabold">{item.category}</Body>
                     <Muted>{formatCurrency(item.total)}</Muted>
-                  </View>
-                  <View style={styles.barTrack}>
-                    <View
-                      style={[
-                        styles.barFill,
-                        { width: `${barWidth}%`, backgroundColor: categoryColor(item.category) },
-                      ]}
+                  </HStack>
+                  <Box className="h-2.5 overflow-hidden rounded-fin bg-fin-surfaceAlt">
+                    <Box
+                      className="h-2.5 rounded-fin"
+                      style={{ width: `${barWidth}%`, backgroundColor: categoryColor(item.category) }}
                     />
-                  </View>
-                </View>
+                  </Box>
+                </VStack>
               );
             })
           )}
@@ -94,13 +91,13 @@ export default function DashboardScreen() {
         ) : (
           deadlines.map((expense) => (
             <Card compact key={expense.id}>
-              <View style={styles.deadlineRow}>
-                <View>
-                  <Body style={styles.strong}>{expense.name}</Body>
+              <HStack className="justify-between">
+                <Box>
+                  <Body className="font-extrabold">{expense.name}</Body>
                   <Muted>{expense.category}</Muted>
-                </View>
-                <Body style={styles.strong}>{formatDate(expense.endDate)}</Body>
-              </View>
+                </Box>
+                <Body className="font-extrabold">{formatDate(expense.endDate)}</Body>
+              </HStack>
             </Card>
           ))
         )}
@@ -124,40 +121,3 @@ export default function DashboardScreen() {
     </AppScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  metricGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  strong: {
-    fontWeight: '800',
-  },
-  warningCard: {
-    borderColor: FinPilotColors.amber,
-  },
-  categoryRow: {
-    gap: 6,
-  },
-  categoryHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  barTrack: {
-    backgroundColor: FinPilotColors.surfaceAlt,
-    borderRadius: 8,
-    height: 10,
-    overflow: 'hidden',
-  },
-  barFill: {
-    borderRadius: 8,
-    height: 10,
-  },
-  deadlineRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-});
-

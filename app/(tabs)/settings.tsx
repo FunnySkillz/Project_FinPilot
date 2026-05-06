@@ -1,10 +1,10 @@
-import { Alert, StyleSheet } from 'react-native';
+import { Alert } from 'react-native';
+import { RotateCcw, Trash2 } from 'lucide-react-native';
 
 import { AppScreen, Stack } from '@/components/finpilot/app-screen';
 import { Card } from '@/components/finpilot/card';
 import { Button, Field } from '@/components/finpilot/controls';
 import { Body, H1, Muted } from '@/components/finpilot/text';
-import { FinPilotColors } from '@/constants/finpilot';
 import { useFinPilot } from '@/context/finpilot-context';
 import { formatCurrency } from '@/utils/formatters';
 
@@ -49,14 +49,14 @@ export default function SettingsScreen() {
 
       <Card>
         <Stack>
-          <Body style={styles.strong}>Data controls</Body>
+          <Body className="font-extrabold">Data controls</Body>
           <Muted>
             Data is stored locally on this device through the app storage layer. Cloud sync, auth, and real OCR/AI APIs
             are intentionally outside this MVP pass.
           </Muted>
           <Button
             variant="secondary"
-            icon="restart-alt"
+            icon={RotateCcw}
             onPress={() => {
               Alert.alert('Reset samples', 'Reload the seeded FinPilot demo data?', [
                 { text: 'Cancel', style: 'cancel' },
@@ -67,7 +67,7 @@ export default function SettingsScreen() {
           </Button>
           <Button
             variant="danger"
-            icon="delete"
+            icon={Trash2}
             onPress={() => {
               Alert.alert('Clear local data', 'Remove all local records and keep only settings?', [
                 { text: 'Cancel', style: 'cancel' },
@@ -79,9 +79,9 @@ export default function SettingsScreen() {
         </Stack>
       </Card>
 
-      <Card style={styles.disclaimer}>
+      <Card className="border-fin-amber">
         <Stack>
-          <Body style={styles.strong}>Important disclaimer</Body>
+          <Body className="font-extrabold">Important disclaimer</Body>
           <Muted>
             FinPilot is not a lawyer, tax advisor, insurance broker, or financial advisor. It should say “Based on
             your uploaded documents...” and show uncertainty when the documents do not prove the answer.
@@ -95,13 +95,3 @@ export default function SettingsScreen() {
     </AppScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  strong: {
-    fontWeight: '800',
-  },
-  disclaimer: {
-    borderColor: FinPilotColors.amber,
-  },
-});
-
