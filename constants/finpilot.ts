@@ -1,7 +1,9 @@
 import { vars } from 'nativewind';
 
+import type { ThemeModeResolved } from '@/types/finpilot';
+
 export const finTheme = {
-  colors: {
+  light: {
     background: '#F6F7F2',
     surface: '#FFFFFF',
     surfaceAlt: '#EEF3EE',
@@ -14,6 +16,22 @@ export const finTheme = {
     danger: '#B33A3A',
     safe: '#2F855A',
     blue: '#2B6CB0',
+    textOnPrimary: '#FFFFFF',
+  },
+  dark: {
+    background: '#101714',
+    surface: '#18231F',
+    surfaceAlt: '#22312B',
+    border: '#34453E',
+    text: '#EAF1EC',
+    muted: '#A5B3AA',
+    primary: '#62B39D',
+    primaryDark: '#9BD6C6',
+    amber: '#E3B75C',
+    danger: '#F07D7D',
+    safe: '#74D39B',
+    blue: '#7BA9E6',
+    textOnPrimary: '#0E1814',
   },
   radii: {
     card: 8,
@@ -25,22 +43,33 @@ export const finTheme = {
   },
 } as const;
 
-export const FinPilotColors = finTheme.colors;
+export type FinPilotColorTokens = typeof finTheme.light;
 
-export const finThemeVars = vars({
-  '--color-fin-background': finTheme.colors.background,
-  '--color-fin-surface': finTheme.colors.surface,
-  '--color-fin-surface-alt': finTheme.colors.surfaceAlt,
-  '--color-fin-border': finTheme.colors.border,
-  '--color-fin-text': finTheme.colors.text,
-  '--color-fin-muted': finTheme.colors.muted,
-  '--color-fin-primary': finTheme.colors.primary,
-  '--color-fin-primary-dark': finTheme.colors.primaryDark,
-  '--color-fin-amber': finTheme.colors.amber,
-  '--color-fin-danger': finTheme.colors.danger,
-  '--color-fin-safe': finTheme.colors.safe,
-  '--color-fin-blue': finTheme.colors.blue,
-});
+export const FinPilotColors = finTheme.light;
+
+export function getFinTheme(mode: ThemeModeResolved): FinPilotColorTokens {
+  return finTheme[mode];
+}
+
+export function getFinThemeVars(mode: ThemeModeResolved) {
+  const colors = getFinTheme(mode);
+
+  return vars({
+    '--color-fin-background': colors.background,
+    '--color-fin-surface': colors.surface,
+    '--color-fin-surface-alt': colors.surfaceAlt,
+    '--color-fin-border': colors.border,
+    '--color-fin-text': colors.text,
+    '--color-fin-muted': colors.muted,
+    '--color-fin-primary': colors.primary,
+    '--color-fin-primary-dark': colors.primaryDark,
+    '--color-fin-amber': colors.amber,
+    '--color-fin-danger': colors.danger,
+    '--color-fin-safe': colors.safe,
+    '--color-fin-blue': colors.blue,
+    '--color-fin-text-on-primary': colors.textOnPrimary,
+  });
+}
 
 export const shadowClass = 'shadow-sm shadow-black/10';
 

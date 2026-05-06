@@ -20,7 +20,7 @@ const stopWords = new Set([
 function tokenize(value: string) {
   return value
     .toLowerCase()
-    .replace(/[^a-z0-9äöüß\s-]/gi, ' ')
+    .replace(/[^\p{L}0-9\s-]/gu, ' ')
     .split(/\s+/)
     .filter((word) => word.length > 2 && !stopWords.has(word));
 }
@@ -140,4 +140,3 @@ export const assistantService = {
     };
   },
 };
-

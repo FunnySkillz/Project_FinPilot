@@ -17,6 +17,10 @@ export type Confidence = 'low' | 'medium' | 'high';
 export type PurchaseType = 'one-time' | 'financing';
 export type PurchasePriority = 'low' | 'medium' | 'high';
 export type PurchaseStatus = 'safe' | 'risky' | 'critical';
+export type AppLanguage = 'en' | 'de';
+export type AppLocale = 'en-AT' | 'de-AT';
+export type ThemeMode = 'system' | 'light' | 'dark';
+export type ThemeModeResolved = 'light' | 'dark';
 
 export type Expense = {
   id: string;
@@ -102,6 +106,11 @@ export type AppSettings = {
   emergencyBufferGoal: number;
   currency: 'EUR';
   samplesSeeded: boolean;
+  hasCompletedOnboarding: boolean;
+  language: AppLanguage;
+  themeMode: ThemeMode;
+  appLockEnabled: boolean;
+  sampleDataEnabled: boolean;
 };
 
 export type FinPilotState = {
@@ -130,3 +139,10 @@ export type PurchaseInput = {
   monthlyFinancingAmount?: number;
 };
 
+export type OnboardingInput = {
+  monthlyIncome: number;
+  emergencyBufferGoal: number;
+  language: AppLanguage;
+  themeMode: ThemeMode;
+  useSampleData: boolean;
+};

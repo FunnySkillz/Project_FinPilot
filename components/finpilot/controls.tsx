@@ -49,15 +49,18 @@ export function SegmentedControl<T extends string>({
   values,
   selected,
   onSelect,
+  getLabel,
 }: {
   values: T[];
   selected: T;
   onSelect: (value: T) => void;
+  getLabel?: (value: T) => string;
 }) {
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-2 py-0.5">
       {values.map((value) => {
         const active = selected === value;
+        const label = getLabel ? getLabel(value) : value;
 
         return (
           <Pressable
@@ -66,11 +69,12 @@ export function SegmentedControl<T extends string>({
             className={`min-h-[38px] rounded-fin border px-3 py-2 ${
               active ? 'border-fin-primary bg-fin-primary' : 'border-fin-border bg-fin-surface'
             }`}>
-            <Body className={`text-[13px] font-bold ${active ? 'text-white' : 'text-fin-text'}`}>{value}</Body>
+            <Body className={`text-[13px] font-bold ${active ? 'text-fin-textOnPrimary' : 'text-fin-text'}`}>
+              {label}
+            </Body>
           </Pressable>
         );
       })}
     </ScrollView>
   );
 }
-

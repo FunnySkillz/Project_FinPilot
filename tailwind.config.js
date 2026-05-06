@@ -22,6 +22,7 @@ module.exports = {
           danger: 'var(--color-fin-danger)',
           safe: 'var(--color-fin-safe)',
           blue: 'var(--color-fin-blue)',
+          textOnPrimary: 'var(--color-fin-text-on-primary)',
         },
       },
       borderRadius: {
@@ -31,4 +32,3 @@ module.exports = {
   },
   plugins: [],
 };
-

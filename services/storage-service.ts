@@ -1,31 +1,67 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { seedState } from '@/data/seed-data';
-import type { AppSettings, FinPilotState } from '@/types/finpilot';
+import { languagePreferenceService } from '@/services/language-preference';
+import { themePreferenceService } from '@/services/theme-preference';
+import type { AppLanguage, AppSettings, FinPilotState, ThemeMode } from '@/types/finpilot';
 
 const STORAGE_KEY = 'finpilot.state.v1';
+export const CURRENT_STATE_VERSION = 2;
 
 function cloneSeedState(): FinPilotState {
-  return JSON.parse(JSON.stringify(seedState)) as FinPilotState;
+  const seeded = JSON.parse(JSON.stringify(seedState)) as FinPilotState;
+  return {
+    ...seeded,
+    version: CURRENT_STATE_VERSION,
+    settings: normalizeSettings(seeded.settings, true),
+  };
+}
+
+function isLanguage(value: unknown): value is AppLanguage {
+  return value === 'en' || value === 'de';
+}
+
+function isThemeMode(value: unknown): value is ThemeMode {
+  return value === 'system' || value === 'light' || value === 'dark';
+}
+
+export function createEmptyState(settings?: Partial<AppSettings>): FinPilotState {
+  return {
+    version: CURRENT_STATE_VERSION,
+    expenses: [],
+    documents: [],
+    questions: [],
+    purchaseDecisions: [],
+    settings: normalizeSettings(settings, false),
+  };
+}
+
+function normalizeSettings(settings?: Partial<AppSettings>, sampleDefault = false): AppSettings {
+  return {
+    monthlyIncome: settings?.monthlyIncome ?? 4200,
+    emergencyBufferGoal: settings?.emergencyBufferGoal ?? 8000,
+    currency: settings?.currency ?? 'EUR',
+    samplesSeeded: settings?.samplesSeeded ?? sampleDefault,
+    hasCompletedOnboarding: settings?.hasCompletedOnboarding ?? sampleDefault,
+    language: languagePreferenceService.load(isLanguage(settings?.language) ? settings.language : undefined),
+    themeMode: themePreferenceService.load(isThemeMode(settings?.themeMode) ? settings.themeMode : undefined),
+    appLockEnabled: settings?.appLockEnabled ?? false,
+    sampleDataEnabled: settings?.sampleDataEnabled ?? sampleDefault,
+  };
 }
 
 function normalizeState(state: Partial<FinPilotState> | null): FinPilotState {
   if (!state) {
-    return cloneSeedState();
+    return createEmptyState();
   }
 
   return {
-    version: state.version ?? 1,
+    version: CURRENT_STATE_VERSION,
     expenses: state.expenses ?? [],
     documents: state.documents ?? [],
     questions: state.questions ?? [],
     purchaseDecisions: state.purchaseDecisions ?? [],
-    settings: {
-      monthlyIncome: state.settings?.monthlyIncome ?? 4200,
-      emergencyBufferGoal: state.settings?.emergencyBufferGoal ?? 8000,
-      currency: state.settings?.currency ?? 'EUR',
-      samplesSeeded: state.settings?.samplesSeeded ?? false,
-    },
+    settings: normalizeSettings(state.settings, (state.version ?? 1) < CURRENT_STATE_VERSION),
   };
 }
 
@@ -33,9 +69,9 @@ export const storageService = {
   async loadState(): Promise<FinPilotState> {
     const stored = await AsyncStorage.getItem(STORAGE_KEY);
     if (!stored) {
-      const seeded = cloneSeedState();
-      await this.saveState(seeded);
-      return seeded;
+      const empty = createEmptyState();
+      await this.saveState(empty);
+      return empty;
     }
 
     try {
@@ -58,21 +94,30 @@ export const storageService = {
   },
 
   async resetEmpty(settings?: Partial<AppSettings>): Promise<FinPilotState> {
-    const empty: FinPilotState = {
-      version: 1,
-      expenses: [],
-      documents: [],
-      questions: [],
-      purchaseDecisions: [],
-      settings: {
-        monthlyIncome: settings?.monthlyIncome ?? 4200,
-        emergencyBufferGoal: settings?.emergencyBufferGoal ?? 8000,
-        currency: 'EUR',
-        samplesSeeded: false,
-      },
-    };
+    const empty = createEmptyState({
+      ...settings,
+      samplesSeeded: false,
+      sampleDataEnabled: false,
+      appLockEnabled: false,
+    });
     await this.saveState(empty);
     return empty;
   },
-};
 
+  async completeOnboarding(settings: Partial<AppSettings>, useSampleData: boolean): Promise<FinPilotState> {
+    const next = useSampleData ? cloneSeedState() : createEmptyState();
+    next.settings = normalizeSettings(
+      {
+        ...next.settings,
+        ...settings,
+        samplesSeeded: useSampleData,
+        sampleDataEnabled: useSampleData,
+        hasCompletedOnboarding: true,
+        appLockEnabled: false,
+      },
+      useSampleData,
+    );
+    await this.saveState(next);
+    return next;
+  },
+};

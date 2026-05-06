@@ -11,6 +11,9 @@ import {
   ViewProps,
 } from 'react-native';
 
+import { getFinTheme } from '@/constants/finpilot';
+import { useThemeMode } from '@/context/theme-mode-context';
+
 type ClassNameProp = {
   className?: string;
 };
@@ -86,7 +89,9 @@ export function Button({
         : variant === 'ghost'
           ? 'bg-transparent'
           : 'bg-fin-primary';
-  const iconColor = variant === 'secondary' || variant === 'ghost' ? '#257061' : '#FFFFFF';
+  const { resolvedMode } = useThemeMode();
+  const theme = getFinTheme(resolvedMode);
+  const iconColor = variant === 'secondary' || variant === 'ghost' ? theme.primary : theme.textOnPrimary;
 
   return (
     <RNPressable
@@ -110,7 +115,7 @@ export function ButtonText({
   variant = 'primary',
   ...props
 }: TextProps & ClassNameProp & { variant?: 'primary' | 'secondary' | 'danger' | 'ghost' }) {
-  const toneClass = variant === 'secondary' || variant === 'ghost' ? 'text-fin-primary' : 'text-white';
+  const toneClass = variant === 'secondary' || variant === 'ghost' ? 'text-fin-primary' : 'text-fin-textOnPrimary';
 
   return <RNText className={cn('text-center text-[15px] font-extrabold leading-[22px]', toneClass, className)} {...props} />;
 }
@@ -150,4 +155,3 @@ export function Pressable({ className, ...props }: PressableProps & ClassNamePro
 export function Badge({ className, ...props }: ViewProps & ClassNameProp) {
   return <View className={cn('self-start rounded-fin border px-2 py-1', className)} {...props} />;
 }
-

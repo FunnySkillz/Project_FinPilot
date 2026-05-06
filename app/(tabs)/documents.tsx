@@ -10,6 +10,7 @@ import { DocumentCard } from '@/components/finpilot/list-cards';
 import { Body, H1, Muted } from '@/components/finpilot/text';
 import { VStack } from '@/components/ui/gluestack';
 import { useFinPilot } from '@/context/finpilot-context';
+import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard';
 import type { Category, DocumentInput } from '@/types/finpilot';
 import { CATEGORIES } from '@/utils/finance';
 
@@ -39,8 +40,22 @@ export default function DocumentsScreen() {
   const [selectedCategory, setSelectedCategory] = useState<Category | 'All'>('All');
   const [query, setQuery] = useState('');
   const [isPicking, setIsPicking] = useState(false);
+  const [isSavingManual, setIsSavingManual] = useState(false);
   const [showManualForm, setShowManualForm] = useState(false);
   const [manualForm, setManualForm] = useState<ManualDocumentForm>(emptyManualForm);
+  const hasUnsavedManualForm =
+    showManualForm &&
+    Boolean(
+      manualForm.title ||
+        manualForm.provider ||
+        manualForm.amount ||
+        manualForm.notes ||
+        manualForm.tags ||
+        manualForm.documentDate !== emptyManualForm.documentDate ||
+        manualForm.category !== emptyManualForm.category,
+    );
+
+  useUnsavedChangesGuard(hasUnsavedManualForm);
 
   const documents = useMemo(() => {
     const queryText = query.trim().toLowerCase();
@@ -66,12 +81,37 @@ export default function DocumentsScreen() {
       if (document) {
         router.push(`/document/${document.id}`);
       }
+    } catch {
+      Alert.alert('Could not upload document', 'FinPilot could not copy this file into local storage.');
     } finally {
       setIsPicking(false);
     }
   };
 
+  const toggleManualForm = () => {
+    if (showManualForm && hasUnsavedManualForm) {
+      Alert.alert('Discard changes?', 'You have unsaved document metadata.', [
+        { text: 'Keep editing', style: 'cancel' },
+        {
+          text: 'Discard',
+          style: 'destructive',
+          onPress: () => {
+            setManualForm(emptyManualForm);
+            setShowManualForm(false);
+          },
+        },
+      ]);
+      return;
+    }
+
+    setShowManualForm((current) => !current);
+  };
+
   const addManual = async () => {
+    if (isSavingManual) {
+      return;
+    }
+
     const amount = manualForm.amount ? Number(manualForm.amount.replace(',', '.')) : undefined;
     if (!manualForm.title.trim()) {
       Alert.alert('Missing title', 'Add a document title first.');
@@ -91,9 +131,16 @@ export default function DocumentsScreen() {
         .filter(Boolean),
     };
 
-    await addManualDocument(input);
-    setManualForm(emptyManualForm);
-    setShowManualForm(false);
+    setIsSavingManual(true);
+    try {
+      await addManualDocument(input);
+      setManualForm(emptyManualForm);
+      setShowManualForm(false);
+    } catch {
+      Alert.alert('Could not save document', 'FinPilot could not create this local document record.');
+    } finally {
+      setIsSavingManual(false);
+    }
   };
 
   return (
@@ -105,13 +152,14 @@ export default function DocumentsScreen() {
       </Stack>
 
       <VStack className="gap-2.5">
-        <Button onPress={upload} icon={Upload} disabled={isPicking}>
+        <Button onPress={upload} icon={Upload} disabled={isPicking || isSavingManual}>
           {isPicking ? 'Opening picker' : 'Upload PDF/image'}
         </Button>
         <Button
           variant="secondary"
           icon={showManualForm ? X : Edit3}
-          onPress={() => setShowManualForm((current) => !current)}>
+          onPress={toggleManualForm}
+          disabled={isPicking || isSavingManual}>
           {showManualForm ? 'Close manual form' : 'Manual record'}
         </Button>
       </VStack>
@@ -165,8 +213,8 @@ export default function DocumentsScreen() {
               multiline
               placeholder="Anything useful for future questions"
             />
-            <Button onPress={addManual} icon={Plus}>
-              Add manual document
+            <Button onPress={addManual} icon={Plus} disabled={isSavingManual}>
+              {isSavingManual ? 'Saving document' : 'Add manual document'}
             </Button>
           </Stack>
         </Card>

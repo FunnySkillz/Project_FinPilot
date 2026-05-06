@@ -10,6 +10,8 @@ import { Button, Field, SegmentedControl } from '@/components/finpilot/controls'
 import { Body, H1, Muted } from '@/components/finpilot/text';
 import { Box, HStack } from '@/components/ui/gluestack';
 import { useFinPilot } from '@/context/finpilot-context';
+import { useLanguage } from '@/context/language-context';
+import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard';
 import type { Category, DocumentInput, FinancialDocument } from '@/types/finpilot';
 import { CATEGORIES } from '@/utils/finance';
 import { formatCurrency, formatDate } from '@/utils/formatters';
@@ -40,22 +42,37 @@ export default function DocumentDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id: string }>();
   const { state, updateDocument, deleteDocument } = useFinPilot();
+  const { locale } = useLanguage();
+  const canGoBack = typeof router.canGoBack === 'function' ? router.canGoBack() : false;
   const document = useMemo(
     () => state.documents.find((item) => item.id === params.id),
     [params.id, state.documents],
   );
   const [form, setForm] = useState<DocumentForm | null>(document ? formFromDocument(document) : null);
+  const [bypassGuard, setBypassGuard] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const hasUnsavedChanges =
+    Boolean(document && form) && JSON.stringify(form) !== JSON.stringify(formFromDocument(document as FinancialDocument));
+
+  useUnsavedChangesGuard(!bypassGuard && hasUnsavedChanges);
 
   useEffect(() => {
     setForm(document ? formFromDocument(document) : null);
   }, [document]);
 
+  useEffect(() => {
+    if (document && form && JSON.stringify(form) === JSON.stringify(formFromDocument(document))) {
+      setBypassGuard(false);
+    }
+  }, [document, form]);
+
   if (!document || !form) {
     return (
-      <AppScreen>
+      <AppScreen nativeHeader>
         <Card>
           <Body>Document not found.</Body>
-          <Button onPress={() => router.back()} icon={ArrowLeft}>
+          <Button onPress={() => (canGoBack ? router.back() : router.replace('/(tabs)/documents'))} icon={ArrowLeft}>
             Go back
           </Button>
         </Card>
@@ -64,6 +81,10 @@ export default function DocumentDetailScreen() {
   }
 
   const save = async () => {
+    if (isSaving) {
+      return;
+    }
+
     const amount = form.amount ? Number(form.amount.replace(',', '.')) : undefined;
     const input: Partial<DocumentInput> = {
       title: form.title.trim() || document.title,
@@ -78,12 +99,20 @@ export default function DocumentDetailScreen() {
         .filter(Boolean),
     };
 
-    await updateDocument(document.id, input);
-    Alert.alert('Saved', 'Document metadata and placeholder analysis were updated.');
+    setIsSaving(true);
+    try {
+      await updateDocument(document.id, input);
+      setBypassGuard(true);
+      Alert.alert('Saved', 'Document metadata and placeholder analysis were updated.');
+    } catch {
+      Alert.alert('Could not save document', 'FinPilot could not update this local document.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
-    <AppScreen>
+    <AppScreen nativeHeader>
       <Stack gap={4}>
         <Muted>Document detail</Muted>
         <H1>{document.title}</H1>
@@ -102,12 +131,12 @@ export default function DocumentDetailScreen() {
           <HStack className="justify-between">
             <Muted>Amount</Muted>
             <Body className="shrink text-right font-extrabold">
-              {document.amount ? formatCurrency(document.amount) : 'Not set'}
+              {document.amount ? formatCurrency(document.amount, state.settings.currency, locale) : 'Not set'}
             </Body>
           </HStack>
           <HStack className="justify-between">
             <Muted>Date</Muted>
-            <Body className="shrink text-right font-extrabold">{formatDate(document.documentDate)}</Body>
+            <Body className="shrink text-right font-extrabold">{formatDate(document.documentDate, locale)}</Body>
           </HStack>
           <HStack className="justify-between">
             <Muted>File</Muted>
@@ -180,12 +209,13 @@ export default function DocumentDetailScreen() {
             onChangeText={(notes) => setForm((current) => current && { ...current, notes })}
             multiline
           />
-          <Button onPress={save} icon={Save}>
-            Save document
+          <Button onPress={save} icon={Save} disabled={isSaving || isDeleting}>
+            {isSaving ? 'Saving document' : 'Save document'}
           </Button>
           <Button
             variant="danger"
             icon={Trash2}
+            disabled={isSaving || isDeleting}
             onPress={() => {
               Alert.alert('Delete document', 'Remove this document from the local vault?', [
                 { text: 'Cancel', style: 'cancel' },
@@ -193,13 +223,26 @@ export default function DocumentDetailScreen() {
                   text: 'Delete',
                   style: 'destructive',
                   onPress: async () => {
-                    await deleteDocument(document.id);
-                    router.back();
+                    setIsDeleting(true);
+                    try {
+                      setBypassGuard(true);
+                      await deleteDocument(document.id);
+                      if (canGoBack) {
+                        router.back();
+                      } else {
+                        router.replace('/(tabs)/documents');
+                      }
+                    } catch {
+                      setBypassGuard(false);
+                      Alert.alert('Could not delete document', 'FinPilot could not remove this local document.');
+                    } finally {
+                      setIsDeleting(false);
+                    }
                   },
                 },
               ]);
             }}>
-            Delete document
+            {isDeleting ? 'Deleting document' : 'Delete document'}
           </Button>
         </Stack>
       </Card>

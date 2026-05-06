@@ -9,6 +9,11 @@ export const seedState: FinPilotState = {
     emergencyBufferGoal: 8000,
     currency: 'EUR',
     samplesSeeded: true,
+    hasCompletedOnboarding: true,
+    language: 'en',
+    themeMode: 'system',
+    appLockEnabled: false,
+    sampleDataEnabled: true,
   },
   expenses: [
     {
@@ -251,4 +256,3 @@ export const seedState: FinPilotState = {
     },
   ],
 };
-

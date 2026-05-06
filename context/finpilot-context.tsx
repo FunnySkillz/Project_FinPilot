@@ -12,7 +12,7 @@ import { analysisService } from '@/services/analysis-service';
 import { assistantService } from '@/services/assistant-service';
 import { documentService } from '@/services/document-service';
 import { purchaseService } from '@/services/purchase-service';
-import { storageService } from '@/services/storage-service';
+import { createEmptyState, storageService } from '@/services/storage-service';
 import type {
   AiQuestion,
   AppSettings,
@@ -21,10 +21,12 @@ import type {
   ExpenseInput,
   FinancialDocument,
   FinPilotState,
+  OnboardingInput,
   PurchaseDecision,
   PurchaseInput,
 } from '@/types/finpilot';
 import { newId } from '@/utils/finance';
+import { pinAuthService } from '@/services/pin-auth';
 
 type FinPilotContextValue = {
   state: FinPilotState;
@@ -40,6 +42,8 @@ type FinPilotContextValue = {
   answerQuestion: (question: string) => Promise<AiQuestion>;
   evaluatePurchase: (input: PurchaseInput) => Promise<PurchaseDecision>;
   updateSettings: (patch: Partial<AppSettings>) => Promise<void>;
+  completeOnboarding: (input: OnboardingInput) => Promise<void>;
+  retryLoad: () => Promise<void>;
   resetWithSamples: () => Promise<void>;
   resetEmpty: () => Promise<void>;
 };
@@ -76,9 +80,22 @@ function createManualDocument(input: DocumentInput): FinancialDocument {
 }
 
 export function FinPilotProvider({ children }: PropsWithChildren) {
-  const [state, setState] = useState<FinPilotState | null>(null);
+  const [state, setState] = useState<FinPilotState>(() => createEmptyState());
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | undefined>();
+
+  const loadState = useCallback(async () => {
+    setIsLoading(true);
+    setError(undefined);
+    try {
+      const loadedState = await storageService.loadState();
+      setState(loadedState);
+    } catch {
+      setError('FinPilot could not load local data.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -108,10 +125,6 @@ export function FinPilotProvider({ children }: PropsWithChildren) {
 
   const commit = useCallback(
     async (updater: (current: FinPilotState) => FinPilotState) => {
-      if (!state) {
-        return;
-      }
-
       const next = updater(state);
       setState(next);
       await storageService.saveState(next);
@@ -119,11 +132,7 @@ export function FinPilotProvider({ children }: PropsWithChildren) {
     [state],
   );
 
-  const value = useMemo<FinPilotContextValue | undefined>(() => {
-    if (!state) {
-      return undefined;
-    }
-
+  const value = useMemo<FinPilotContextValue>(() => {
     return {
       state,
       isLoading,
@@ -226,20 +235,31 @@ export function FinPilotProvider({ children }: PropsWithChildren) {
           },
         }));
       },
+      completeOnboarding: async (input) => {
+        const next = await storageService.completeOnboarding(
+          {
+            monthlyIncome: input.monthlyIncome,
+            emergencyBufferGoal: input.emergencyBufferGoal,
+            language: input.language,
+            themeMode: input.themeMode,
+          },
+          input.useSampleData,
+        );
+        setState(next);
+      },
+      retryLoad: loadState,
       resetWithSamples: async () => {
+        await pinAuthService.clearPinAsync();
         const seeded = await storageService.resetWithSamples();
         setState(seeded);
       },
       resetEmpty: async () => {
+        await pinAuthService.clearPinAsync();
         const empty = await storageService.resetEmpty(state.settings);
         setState(empty);
       },
     };
-  }, [commit, error, isLoading, state]);
-
-  if (!value) {
-    return null;
-  }
+  }, [commit, error, isLoading, loadState, state]);
 
   return <FinPilotContext.Provider value={value}>{children}</FinPilotContext.Provider>;
 }
@@ -253,4 +273,3 @@ export function useFinPilot() {
 
   return context;
 }
-

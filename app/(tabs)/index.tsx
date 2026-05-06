@@ -6,12 +6,14 @@ import { DocumentCard, ExpenseCard } from '@/components/finpilot/list-cards';
 import { Body, H1, Muted } from '@/components/finpilot/text';
 import { Box, HStack, VStack } from '@/components/ui/gluestack';
 import { useFinPilot } from '@/context/finpilot-context';
+import { useLanguage } from '@/context/language-context';
 import { calculateFinanceSummary, categoryColor, categoryTotals, upcomingDeadlines } from '@/utils/finance';
 import { formatCurrency, formatDate, percent } from '@/utils/formatters';
 
 export default function DashboardScreen() {
   const router = useRouter();
   const { state } = useFinPilot();
+  const { locale } = useLanguage();
   const summary = calculateFinanceSummary(state.expenses, state.settings.monthlyIncome);
   const categories = categoryTotals(state.expenses).slice(0, 5);
   const deadlines = upcomingDeadlines(state.expenses);
@@ -28,12 +30,12 @@ export default function DashboardScreen() {
       </Stack>
 
       <Box className="flex-row flex-wrap gap-2.5">
-        <MetricCard label="Fixed costs" value={formatCurrency(summary.fixedMonthly)} helper="per month" />
-        <MetricCard label="Variable costs" value={formatCurrency(summary.variableMonthly)} helper="per month" />
-        <MetricCard label="Total expenses" value={formatCurrency(summary.totalMonthly)} helper="monthly load" />
+        <MetricCard label="Fixed costs" value={formatCurrency(summary.fixedMonthly, state.settings.currency, locale)} helper="per month" />
+        <MetricCard label="Variable costs" value={formatCurrency(summary.variableMonthly, state.settings.currency, locale)} helper="per month" />
+        <MetricCard label="Total expenses" value={formatCurrency(summary.totalMonthly, state.settings.currency, locale)} helper="monthly load" />
         <MetricCard
           label="Remaining"
-          value={formatCurrency(summary.remainingMonthly)}
+          value={formatCurrency(summary.remainingMonthly, state.settings.currency, locale)}
           helper="after recurring expenses"
           tone={summary.remainingMonthly > 1000 ? 'safe' : summary.remainingMonthly > 0 ? 'warning' : 'danger'}
         />
@@ -49,8 +51,8 @@ export default function DashboardScreen() {
               : 'Stable: recurring costs leave room for decisions.'}
         </Body>
         <Muted>
-          Yearly recurring pressure: {formatCurrency(summary.yearlyRecurring)}. Emergency buffer target:{' '}
-          {formatCurrency(state.settings.emergencyBufferGoal)}.
+          Yearly recurring pressure: {formatCurrency(summary.yearlyRecurring, state.settings.currency, locale)}. Emergency buffer target:{' '}
+          {formatCurrency(state.settings.emergencyBufferGoal, state.settings.currency, locale)}.
         </Muted>
       </Card>
 
@@ -67,7 +69,7 @@ export default function DashboardScreen() {
                 <VStack key={item.category} className="gap-1.5">
                   <HStack className="justify-between">
                     <Body className="font-extrabold">{item.category}</Body>
-                    <Muted>{formatCurrency(item.total)}</Muted>
+                    <Muted>{formatCurrency(item.total, state.settings.currency, locale)}</Muted>
                   </HStack>
                   <Box className="h-2.5 overflow-hidden rounded-fin bg-fin-surfaceAlt">
                     <Box
@@ -96,7 +98,7 @@ export default function DashboardScreen() {
                   <Body className="font-extrabold">{expense.name}</Body>
                   <Muted>{expense.category}</Muted>
                 </Box>
-                <Body className="font-extrabold">{formatDate(expense.endDate)}</Body>
+                <Body className="font-extrabold">{formatDate(expense.endDate, locale)}</Body>
               </HStack>
             </Card>
           ))

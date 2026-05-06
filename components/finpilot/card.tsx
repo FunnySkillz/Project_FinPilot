@@ -4,7 +4,8 @@ import type { ViewProps } from 'react-native';
 
 import { Body, H2, Muted } from '@/components/finpilot/text';
 import { Box, Card as GlueCard, HStack, Pressable, VStack } from '@/components/ui/gluestack';
-import { FinPilotColors } from '@/constants/finpilot';
+import { getFinTheme } from '@/constants/finpilot';
+import { useThemeMode } from '@/context/theme-mode-context';
 
 type CardProps = PropsWithChildren<
   ViewProps & {
@@ -61,13 +62,16 @@ export function SectionHeader({
   actionLabel?: string;
   onAction?: () => void;
 }) {
+  const { resolvedMode } = useThemeMode();
+  const theme = getFinTheme(resolvedMode);
+
   return (
     <HStack className="justify-between">
       <H2>{title}</H2>
       {actionLabel && onAction ? (
         <Pressable onPress={onAction} className="min-h-[34px] flex-row items-center">
           <Body className="font-bold text-fin-primary">{actionLabel}</Body>
-          <ChevronRight size={18} color={FinPilotColors.primary} />
+          <ChevronRight size={18} color={theme.primary} />
         </Pressable>
       ) : (
         <Box />
@@ -75,4 +79,3 @@ export function SectionHeader({
     </HStack>
   );
 }
-

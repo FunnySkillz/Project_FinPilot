@@ -1,5 +1,6 @@
 import { Badge, Text } from '@/components/ui/gluestack';
-import { FinPilotColors } from '@/constants/finpilot';
+import { getFinTheme } from '@/constants/finpilot';
+import { useThemeMode } from '@/context/theme-mode-context';
 import type { Category, Confidence, PurchaseStatus } from '@/types/finpilot';
 import { categoryColor } from '@/utils/finance';
 
@@ -16,12 +17,14 @@ export function CategoryBadge({ category }: { category: Category }) {
 }
 
 export function ConfidenceBadge({ confidence }: { confidence: Confidence }) {
+  const { resolvedMode } = useThemeMode();
+  const theme = getFinTheme(resolvedMode);
   const color =
     confidence === 'high'
-      ? FinPilotColors.safe
+      ? theme.safe
       : confidence === 'medium'
-        ? FinPilotColors.amber
-        : FinPilotColors.danger;
+        ? theme.amber
+        : theme.danger;
 
   return (
     <Badge style={{ borderColor: color }}>
@@ -33,8 +36,10 @@ export function ConfidenceBadge({ confidence }: { confidence: Confidence }) {
 }
 
 export function StatusBadge({ status }: { status: PurchaseStatus }) {
+  const { resolvedMode } = useThemeMode();
+  const theme = getFinTheme(resolvedMode);
   const color =
-    status === 'safe' ? FinPilotColors.safe : status === 'risky' ? FinPilotColors.amber : FinPilotColors.danger;
+    status === 'safe' ? theme.safe : status === 'risky' ? theme.amber : theme.danger;
 
   return (
     <Badge className="bg-fin-surface" style={{ borderColor: color }}>
@@ -44,4 +49,3 @@ export function StatusBadge({ status }: { status: PurchaseStatus }) {
     </Badge>
   );
 }
-

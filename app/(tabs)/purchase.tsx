@@ -10,6 +10,7 @@ import { PurchaseDecisionCard } from '@/components/finpilot/list-cards';
 import { Body, H1, Muted } from '@/components/finpilot/text';
 import { Box, HStack } from '@/components/ui/gluestack';
 import { useFinPilot } from '@/context/finpilot-context';
+import { useLanguage } from '@/context/language-context';
 import type { PurchaseDecision, PurchasePriority, PurchaseType } from '@/types/finpilot';
 import { calculateFinanceSummary } from '@/utils/finance';
 import { formatCurrency } from '@/utils/formatters';
@@ -26,6 +27,7 @@ type PurchaseForm = {
 
 export default function PurchaseScreen() {
   const { state, evaluatePurchase } = useFinPilot();
+  const { locale } = useLanguage();
   const finance = calculateFinanceSummary(state.expenses, state.settings.monthlyIncome);
   const [form, setForm] = useState<PurchaseForm>({
     purchaseName: 'New wheels',
@@ -71,8 +73,8 @@ export default function PurchaseScreen() {
       </Stack>
 
       <Box className="flex-row flex-wrap gap-2.5">
-        <MetricCard label="Current fixed costs" value={formatCurrency(finance.fixedMonthly)} helper="from expenses" />
-        <MetricCard label="Remaining cash flow" value={formatCurrency(finance.remainingMonthly)} helper="monthly" />
+        <MetricCard label="Current fixed costs" value={formatCurrency(finance.fixedMonthly, state.settings.currency, locale)} helper="from expenses" />
+        <MetricCard label="Remaining cash flow" value={formatCurrency(finance.remainingMonthly, state.settings.currency, locale)} helper="monthly" />
       </Box>
 
       <Card>
@@ -145,8 +147,8 @@ export default function PurchaseScreen() {
           </HStack>
           <Body>{decision.summary}</Body>
           <Box className="flex-row flex-wrap gap-2.5">
-            <MetricCard label="Monthly impact" value={formatCurrency(decision.monthlyImpact)} />
-            <MetricCard label="Buffer after" value={formatCurrency(decision.bufferAfterPurchase)} />
+            <MetricCard label="Monthly impact" value={formatCurrency(decision.monthlyImpact, state.settings.currency, locale)} />
+            <MetricCard label="Buffer after" value={formatCurrency(decision.bufferAfterPurchase, state.settings.currency, locale)} />
           </Box>
           <Body className="font-extrabold text-fin-primaryDark">{decision.recommendation}</Body>
         </Card>

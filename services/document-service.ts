@@ -30,7 +30,7 @@ function inferCategory(name: string): Category {
   if (value.includes('rechnung') || value.includes('invoice') || value.includes('warranty')) {
     return 'Warranty';
   }
-  if (value.includes('fine') || value.includes('penalty') || value.includes('bußgeld')) {
+  if (value.includes('fine') || value.includes('penalty') || value.includes('bussgeld')) {
     return 'Fines';
   }
   if (value.includes('tax') || value.includes('steuer')) {
@@ -101,4 +101,3 @@ export const documentService = {
     };
   },
 };
-

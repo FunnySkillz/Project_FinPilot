@@ -10,6 +10,8 @@ import { ExpenseCard } from '@/components/finpilot/list-cards';
 import { Body, H1, Muted } from '@/components/finpilot/text';
 import { Box, Pressable } from '@/components/ui/gluestack';
 import { useFinPilot } from '@/context/finpilot-context';
+import { useLanguage } from '@/context/language-context';
+import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard';
 import type { Category, Expense, ExpenseCadence, ExpenseInput, ExpenseKind } from '@/types/finpilot';
 import { CADENCES, CATEGORIES, EXPENSE_KINDS, monthlyRecurringExpense } from '@/utils/finance';
 import { formatCurrency } from '@/utils/formatters';
@@ -53,10 +55,15 @@ function formFromExpense(expense: Expense): ExpenseForm {
 
 export default function ExpensesScreen() {
   const { state, addExpense, updateExpense, deleteExpense } = useFinPilot();
+  const { locale } = useLanguage();
   const [selectedCategory, setSelectedCategory] = useState<Category | 'All'>('All');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | undefined>();
   const [form, setForm] = useState<ExpenseForm>(emptyForm);
+  const [isSaving, setIsSaving] = useState(false);
+  const hasUnsavedChanges = showForm && Boolean(editingId || form.name || form.amount || form.notes);
+
+  useUnsavedChangesGuard(hasUnsavedChanges);
 
   const filteredExpenses = useMemo(
     () =>
@@ -68,6 +75,10 @@ export default function ExpensesScreen() {
   const monthlyTotal = filteredExpenses.reduce((sum, expense) => sum + monthlyRecurringExpense(expense), 0);
 
   const submit = async () => {
+    if (isSaving) {
+      return;
+    }
+
     const amount = Number(form.amount.replace(',', '.'));
     if (!form.name.trim() || !Number.isFinite(amount) || amount <= 0) {
       Alert.alert('Missing information', 'Add a name and a positive amount.');
@@ -86,15 +97,22 @@ export default function ExpensesScreen() {
       linkedDocumentId: form.linkedDocumentId,
     };
 
-    if (editingId) {
-      await updateExpense(editingId, input);
-    } else {
-      await addExpense(input);
-    }
+    setIsSaving(true);
+    try {
+      if (editingId) {
+        await updateExpense(editingId, input);
+      } else {
+        await addExpense(input);
+      }
 
-    setEditingId(undefined);
-    setForm(emptyForm);
-    setShowForm(false);
+      setEditingId(undefined);
+      setForm(emptyForm);
+      setShowForm(false);
+    } catch {
+      Alert.alert('Could not save expense', 'FinPilot could not update local expense data.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const startEditing = (expense: Expense) => {
@@ -114,7 +132,9 @@ export default function ExpensesScreen() {
       <Box className="flex-row gap-2.5">
         <Card className="flex-1">
           <Muted>Visible monthly load</Muted>
-          <Body className="text-2xl font-extrabold leading-[30px]">{formatCurrency(monthlyTotal)}</Body>
+          <Body className="text-2xl font-extrabold leading-[30px]">
+            {formatCurrency(monthlyTotal, state.settings.currency, locale)}
+          </Body>
         </Card>
         <Card className="flex-1">
           <Muted>Expense records</Muted>
@@ -199,7 +219,9 @@ export default function ExpensesScreen() {
                   className={`rounded-fin border px-2.5 py-2 ${
                     !form.linkedDocumentId ? 'border-fin-primary bg-fin-primary' : 'border-fin-border'
                   }`}>
-                  <Body className={`text-xs ${!form.linkedDocumentId ? 'font-extrabold text-white' : ''}`}>None</Body>
+                  <Body className={`text-xs ${!form.linkedDocumentId ? 'font-extrabold text-fin-textOnPrimary' : ''}`}>
+                    None
+                  </Body>
                 </Pressable>
                 {state.documents.slice(0, 8).map((document) => {
                   const active = form.linkedDocumentId === document.id;
@@ -210,7 +232,7 @@ export default function ExpensesScreen() {
                       className={`rounded-fin border px-2.5 py-2 ${
                         active ? 'border-fin-primary bg-fin-primary' : 'border-fin-border'
                       }`}>
-                      <Body className={`text-xs ${active ? 'font-extrabold text-white' : ''}`}>
+                      <Body className={`text-xs ${active ? 'font-extrabold text-fin-textOnPrimary' : ''}`}>
                         {document.title}
                       </Body>
                     </Pressable>
@@ -218,18 +240,26 @@ export default function ExpensesScreen() {
                 })}
               </Box>
             </Stack>
-            <Button onPress={submit} icon={editingId ? Save : Plus}>
-              {editingId ? 'Save expense' : 'Add expense'}
+            <Button onPress={submit} icon={editingId ? Save : Plus} disabled={isSaving}>
+              {isSaving ? 'Saving' : editingId ? 'Save expense' : 'Add expense'}
             </Button>
             {editingId ? (
               <Button
                 variant="danger"
                 icon={Trash2}
+                disabled={isSaving}
                 onPress={async () => {
-                  await deleteExpense(editingId);
-                  setEditingId(undefined);
-                  setShowForm(false);
-                  setForm(emptyForm);
+                  setIsSaving(true);
+                  try {
+                    await deleteExpense(editingId);
+                    setEditingId(undefined);
+                    setShowForm(false);
+                    setForm(emptyForm);
+                  } catch {
+                    Alert.alert('Could not delete expense', 'FinPilot could not remove this local expense.');
+                  } finally {
+                    setIsSaving(false);
+                  }
                 }}>
                 Delete expense
               </Button>
