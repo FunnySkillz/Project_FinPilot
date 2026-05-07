@@ -43,7 +43,7 @@ export const finTheme = {
   },
 } as const;
 
-export type FinPilotColorTokens = typeof finTheme.light;
+export type FinPilotColorTokens = (typeof finTheme)[ThemeModeResolved];
 
 export const FinPilotColors = finTheme.light;
 
@@ -72,4 +72,3 @@ export function getFinThemeVars(mode: ThemeModeResolved) {
 }
 
 export const shadowClass = 'shadow-sm shadow-black/10';
-

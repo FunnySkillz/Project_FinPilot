@@ -14,7 +14,14 @@ import { isValidPin, pinAuthService } from '@/services/pin-auth';
 export default function SecurityScreen() {
   const { state } = useFinPilot();
   const { t } = useLanguage();
-  const appLock = useAppLock();
+  const {
+    authError,
+    disableAppLock,
+    enableAppLock,
+    pinAvailable,
+    refreshPinAvailability,
+    setPin,
+  } = useAppLock();
   const [currentPin, setCurrentPin] = useState('');
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
@@ -22,8 +29,8 @@ export default function SecurityScreen() {
   const [message, setMessage] = useState<string | undefined>();
 
   useEffect(() => {
-    appLock.refreshPinAvailability();
-  }, [appLock.refreshPinAvailability]);
+    refreshPinAvailability();
+  }, [refreshPinAvailability]);
 
   const validateNewPin = () => {
     return isValidPin(newPin) && newPin === confirmPin;
@@ -37,7 +44,7 @@ export default function SecurityScreen() {
 
     setIsBusy(true);
     try {
-      if (appLock.pinAvailable) {
+      if (pinAvailable) {
         const verified = await pinAuthService.verifyPinAsync(currentPin);
         if (!verified.success) {
           Alert.alert(t('security.wrongPin'));
@@ -45,7 +52,7 @@ export default function SecurityScreen() {
         }
       }
 
-      await appLock.setPin(newPin);
+      await setPin(newPin);
       setCurrentPin('');
       setNewPin('');
       setConfirmPin('');
@@ -59,13 +66,13 @@ export default function SecurityScreen() {
   const enable = async () => {
     setIsBusy(true);
     try {
-      if (!appLock.pinAvailable) {
+      if (!pinAvailable) {
         const saved = await savePin();
         if (!saved) {
           return;
         }
       }
-      await appLock.enableAppLock();
+      await enableAppLock();
       setMessage(t('security.enabledMessage'));
     } catch (error) {
       Alert.alert(error instanceof Error ? error.message : t('security.pinError'));
@@ -77,7 +84,7 @@ export default function SecurityScreen() {
   const disable = async () => {
     setIsBusy(true);
     try {
-      await appLock.disableAppLock();
+      await disableAppLock();
       setMessage(t('security.disabledMessage'));
     } finally {
       setIsBusy(false);
@@ -98,9 +105,9 @@ export default function SecurityScreen() {
             {t('security.appLock')}: {state.settings.appLockEnabled ? t('security.enabled') : t('security.disabled')}
           </Body>
           <Muted>
-            {appLock.pinAvailable ? t('security.pinSaved') : t('security.pinError')}
+            {pinAvailable ? t('security.pinSaved') : t('security.pinError')}
           </Muted>
-          {appLock.pinAvailable ? (
+          {pinAvailable ? (
             <Field
               label={t('security.currentPin')}
               value={currentPin}
@@ -136,7 +143,7 @@ export default function SecurityScreen() {
             {t('security.disable')}
           </Button>
           {message ? <Muted>{message}</Muted> : null}
-          {appLock.authError ? <Muted>{appLock.authError}</Muted> : null}
+          {authError ? <Muted>{authError}</Muted> : null}
         </Stack>
       </Card>
     </AppScreen>
