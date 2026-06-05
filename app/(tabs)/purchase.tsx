@@ -27,7 +27,7 @@ type PurchaseForm = {
 
 export default function PurchaseScreen() {
   const { state, evaluatePurchase } = useFinPilot();
-  const { locale } = useLanguage();
+  const { locale, t } = useLanguage();
   const finance = calculateFinanceSummary(state.expenses, state.settings.monthlyIncome);
   const [form, setForm] = useState<PurchaseForm>({
     purchaseName: 'New wheels',
@@ -73,7 +73,11 @@ export default function PurchaseScreen() {
       </Stack>
 
       <Box className="flex-row flex-wrap gap-2.5">
-        <MetricCard label="Current fixed costs" value={formatCurrency(finance.fixedMonthly, state.settings.currency, locale)} helper="from expenses" />
+        <MetricCard
+          label={t('expenses.monthlyLoad')}
+          value={formatCurrency(finance.recurringMonthlyLoad, state.settings.currency, locale)}
+          helper="from recurring expenses"
+        />
         <MetricCard label="Remaining cash flow" value={formatCurrency(finance.remainingMonthly, state.settings.currency, locale)} helper="monthly" />
       </Box>
 

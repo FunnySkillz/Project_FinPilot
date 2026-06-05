@@ -3,10 +3,40 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { seedState } from '@/data/seed-data';
 import { languagePreferenceService } from '@/services/language-preference';
 import { themePreferenceService } from '@/services/theme-preference';
-import type { AppLanguage, AppSettings, FinPilotState, ThemeMode } from '@/types/finpilot';
+import type {
+  AppLanguage,
+  AppSettings,
+  Category,
+  Expense,
+  ExpenseCadence,
+  ExpenseKind,
+  FinPilotState,
+  PaymentMethod,
+  ThemeMode,
+} from '@/types/finpilot';
+import { CATEGORIES } from '@/utils/finance';
 
 const STORAGE_KEY = 'finpilot.state.v1';
-export const CURRENT_STATE_VERSION = 2;
+export const CURRENT_STATE_VERSION = 3;
+
+const PAYMENT_METHODS: PaymentMethod[] = [
+  'cash',
+  'debit-card',
+  'credit-card',
+  'bank-transfer',
+  'paypal',
+  'apple-pay',
+  'other',
+];
+
+type LegacyExpenseKind = ExpenseKind | 'fixed' | 'variable';
+type LegacyExpenseCadence = ExpenseCadence | 'one-time';
+type StoredExpense = Partial<Omit<Expense, 'cadence' | 'kind' | 'paymentMethod' | 'tags'>> & {
+  cadence?: unknown;
+  kind?: unknown;
+  paymentMethod?: unknown;
+  tags?: unknown;
+};
 
 function cloneSeedState(): FinPilotState {
   const seeded = JSON.parse(JSON.stringify(seedState)) as FinPilotState;
@@ -23,6 +53,71 @@ function isLanguage(value: unknown): value is AppLanguage {
 
 function isThemeMode(value: unknown): value is ThemeMode {
   return value === 'system' || value === 'light' || value === 'dark';
+}
+
+function isCategory(value: unknown): value is Category {
+  return typeof value === 'string' && CATEGORIES.includes(value as Category);
+}
+
+function isExpenseCadence(value: unknown): value is ExpenseCadence {
+  return value === 'monthly' || value === 'yearly';
+}
+
+function isPaymentMethod(value: unknown): value is PaymentMethod {
+  return typeof value === 'string' && PAYMENT_METHODS.includes(value as PaymentMethod);
+}
+
+function getLegacyExpenseKind(value: unknown): LegacyExpenseKind | undefined {
+  if (value === 'recurring' || value === 'one-off' || value === 'fixed' || value === 'variable') {
+    return value;
+  }
+
+  return undefined;
+}
+
+function getLegacyExpenseCadence(value: unknown): LegacyExpenseCadence | undefined {
+  if (value === 'monthly' || value === 'yearly' || value === 'one-time') {
+    return value;
+  }
+
+  return undefined;
+}
+
+function normalizeExpense(expense: StoredExpense, index: number): Expense {
+  const legacyKind = getLegacyExpenseKind(expense.kind);
+  const legacyCadence = getLegacyExpenseCadence(expense.cadence);
+  const kind: ExpenseKind =
+    legacyCadence === 'one-time' || legacyKind === 'one-off' ? 'one-off' : 'recurring';
+  const cadence = kind === 'recurring' ? (isExpenseCadence(legacyCadence) ? legacyCadence : 'monthly') : undefined;
+  const amount = typeof expense.amount === 'number' ? expense.amount : Number(expense.amount);
+  const tags = Array.isArray(expense.tags)
+    ? expense.tags.filter((tag): tag is string => typeof tag === 'string' && tag.trim().length > 0)
+    : [];
+
+  return {
+    id: typeof expense.id === 'string' ? expense.id : `exp-migrated-${index}`,
+    name: typeof expense.name === 'string' && expense.name.trim() ? expense.name : 'Untitled expense',
+    amount: Number.isFinite(amount) ? amount : 0,
+    ...(cadence ? { cadence } : {}),
+    category: isCategory(expense.category) ? expense.category : 'Other',
+    kind,
+    startDate:
+      typeof expense.startDate === 'string' && expense.startDate.trim()
+        ? expense.startDate
+        : new Date().toISOString().slice(0, 10),
+    endDate: typeof expense.endDate === 'string' && expense.endDate.trim() ? expense.endDate : undefined,
+    merchant:
+      typeof expense.merchant === 'string' && expense.merchant.trim() ? expense.merchant : undefined,
+    paymentMethod: isPaymentMethod(expense.paymentMethod) ? expense.paymentMethod : undefined,
+    tags,
+    notes: typeof expense.notes === 'string' && expense.notes.trim() ? expense.notes : undefined,
+    linkedDocumentId:
+      typeof expense.linkedDocumentId === 'string' && expense.linkedDocumentId.trim()
+        ? expense.linkedDocumentId
+        : undefined,
+    createdAt: typeof expense.createdAt === 'string' ? expense.createdAt : new Date().toISOString(),
+    updatedAt: typeof expense.updatedAt === 'string' ? expense.updatedAt : new Date().toISOString(),
+  };
 }
 
 export function createEmptyState(settings?: Partial<AppSettings>): FinPilotState {
@@ -57,7 +152,7 @@ function normalizeState(state: Partial<FinPilotState> | null): FinPilotState {
 
   return {
     version: CURRENT_STATE_VERSION,
-    expenses: state.expenses ?? [],
+    expenses: (state.expenses ?? []).map((expense, index) => normalizeExpense(expense, index)),
     documents: state.documents ?? [],
     questions: state.questions ?? [],
     purchaseDecisions: state.purchaseDecisions ?? [],
@@ -75,7 +170,12 @@ export const storageService = {
     }
 
     try {
-      return normalizeState(JSON.parse(stored) as Partial<FinPilotState>);
+      const parsed = JSON.parse(stored) as Partial<FinPilotState>;
+      const normalized = normalizeState(parsed);
+      if ((parsed.version ?? 1) < CURRENT_STATE_VERSION) {
+        await this.saveState(normalized);
+      }
+      return normalized;
     } catch {
       const seeded = cloneSeedState();
       await this.saveState(seeded);

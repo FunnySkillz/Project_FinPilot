@@ -7,11 +7,26 @@ import { Box, HStack, Pressable, VStack } from '@/components/ui/gluestack';
 import { getFinTheme } from '@/constants/finpilot';
 import { useLanguage } from '@/context/language-context';
 import { useThemeMode } from '@/context/theme-mode-context';
-import type { Expense, FinancialDocument, PurchaseDecision } from '@/types/finpilot';
+import type { Expense, ExpenseCadence, FinancialDocument, PaymentMethod, PurchaseDecision } from '@/types/finpilot';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 
+function paymentMethodLabelKey(paymentMethod: PaymentMethod) {
+  return `expenses.payment.${paymentMethod}` as const;
+}
+
+function cadenceLabelKey(cadence: ExpenseCadence) {
+  return `expenses.cadence.${cadence}` as const;
+}
+
+function notePreview(notes: string) {
+  return notes.length > 120 ? `${notes.slice(0, 117)}...` : notes;
+}
+
 export function ExpenseCard({ expense, onPress }: { expense: Expense; onPress?: () => void }) {
-  const { locale } = useLanguage();
+  const { locale, t } = useLanguage();
+  const { resolvedMode } = useThemeMode();
+  const theme = getFinTheme(resolvedMode);
+  const tagPreview = expense.tags.slice(0, 4);
 
   return (
     <Pressable onPress={onPress} disabled={!onPress}>
@@ -21,16 +36,33 @@ export function ExpenseCard({ expense, onPress }: { expense: Expense; onPress?: 
             <Box className="flex-1">
               <H2>{expense.name}</H2>
               <Muted>
-                {expense.cadence} | {expense.kind}
+                {expense.kind === 'recurring' ? t('expenses.recurring') : t('expenses.oneOff')}
+                {expense.kind === 'recurring' && expense.cadence ? ` | ${t(cadenceLabelKey(expense.cadence))}` : ''}
               </Muted>
             </Box>
             <Body className="font-extrabold">{formatCurrency(expense.amount, 'EUR', locale)}</Body>
           </HStack>
           <HStack className="flex-wrap gap-2">
-            <CategoryBadge category={expense.category} />
-            {expense.endDate ? <Muted>Deadline {formatDate(expense.endDate, locale)}</Muted> : null}
+            <Muted>
+              {expense.kind === 'recurring' ? t('expenses.startDate') : t('expenses.date')}{' '}
+              {formatDate(expense.startDate, locale)}
+            </Muted>
+            {expense.merchant ? <Muted>{expense.merchant}</Muted> : null}
+            {expense.paymentMethod ? <Muted>{t(paymentMethodLabelKey(expense.paymentMethod))}</Muted> : null}
+            {expense.linkedDocumentId ? <FileText size={16} color={theme.primary} /> : null}
           </HStack>
-          {expense.notes ? <Muted>{expense.notes}</Muted> : null}
+          <HStack className="flex-wrap gap-2">
+            <CategoryBadge category={expense.category} />
+            {expense.endDate ? <Muted>{t('expenses.deadline')} {formatDate(expense.endDate, locale)}</Muted> : null}
+          </HStack>
+          {tagPreview.length > 0 ? (
+            <HStack className="flex-wrap gap-1.5">
+              {tagPreview.map((tag) => (
+                <Muted key={tag}>#{tag}</Muted>
+              ))}
+            </HStack>
+          ) : null}
+          {expense.notes ? <Muted>{notePreview(expense.notes)}</Muted> : null}
         </VStack>
       </Card>
     </Pressable>

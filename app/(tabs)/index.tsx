@@ -13,7 +13,7 @@ import { formatCurrency, formatDate, percent } from '@/utils/formatters';
 export default function DashboardScreen() {
   const router = useRouter();
   const { state } = useFinPilot();
-  const { locale } = useLanguage();
+  const { locale, t } = useLanguage();
   const summary = calculateFinanceSummary(state.expenses, state.settings.monthlyIncome);
   const categories = categoryTotals(state.expenses).slice(0, 5);
   const deadlines = upcomingDeadlines(state.expenses);
@@ -30,13 +30,25 @@ export default function DashboardScreen() {
       </Stack>
 
       <Box className="flex-row flex-wrap gap-2.5">
-        <MetricCard label="Fixed costs" value={formatCurrency(summary.fixedMonthly, state.settings.currency, locale)} helper="per month" />
-        <MetricCard label="Variable costs" value={formatCurrency(summary.variableMonthly, state.settings.currency, locale)} helper="per month" />
-        <MetricCard label="Total expenses" value={formatCurrency(summary.totalMonthly, state.settings.currency, locale)} helper="monthly load" />
+        <MetricCard
+          label={t('expenses.monthlyLoad')}
+          value={formatCurrency(summary.recurringMonthlyLoad, state.settings.currency, locale)}
+          helper="per month"
+        />
+        <MetricCard
+          label={t('expenses.oneOffMonthlySpending')}
+          value={formatCurrency(summary.oneOffMonthlySpending, state.settings.currency, locale)}
+          helper="current month"
+        />
+        <MetricCard
+          label={t('expenses.totalMonthlyPressure')}
+          value={formatCurrency(summary.totalMonthlyPressure, state.settings.currency, locale)}
+          helper="estimated"
+        />
         <MetricCard
           label="Remaining"
           value={formatCurrency(summary.remainingMonthly, state.settings.currency, locale)}
-          helper="after recurring expenses"
+          helper="after monthly pressure"
           tone={summary.remainingMonthly > 1000 ? 'safe' : summary.remainingMonthly > 0 ? 'warning' : 'danger'}
         />
       </Box>
@@ -45,13 +57,13 @@ export default function DashboardScreen() {
         <Muted>Risk signal</Muted>
         <Body className="font-extrabold">
           {summary.remainingMonthly < 0
-            ? 'Critical: recurring costs exceed monthly income.'
+            ? 'Critical: monthly pressure exceeds monthly income.'
             : summary.remainingMonthly < 600
               ? 'Risky: your monthly flexibility is thin.'
-              : 'Stable: recurring costs leave room for decisions.'}
+              : 'Stable: your monthly pressure leaves room for decisions.'}
         </Body>
         <Muted>
-          Yearly recurring pressure: {formatCurrency(summary.yearlyRecurring, state.settings.currency, locale)}. Emergency buffer target:{' '}
+          Yearly recurring baseline: {formatCurrency(summary.yearlyRecurring, state.settings.currency, locale)}. Emergency buffer target:{' '}
           {formatCurrency(state.settings.emergencyBufferGoal, state.settings.currency, locale)}.
         </Muted>
       </Card>
@@ -63,7 +75,7 @@ export default function DashboardScreen() {
             <Muted>No recurring expenses yet.</Muted>
           ) : (
             categories.map((item) => {
-              const barWidth = percent(item.total, summary.totalMonthly);
+              const barWidth = percent(item.total, summary.totalMonthlyPressure);
 
               return (
                 <VStack key={item.category} className="gap-1.5">

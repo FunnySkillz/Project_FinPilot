@@ -11,8 +11,16 @@ export type Category =
   | 'Fines'
   | 'Other';
 
-export type ExpenseCadence = 'monthly' | 'yearly' | 'one-time';
-export type ExpenseKind = 'fixed' | 'variable';
+export type ExpenseCadence = 'monthly' | 'yearly';
+export type ExpenseKind = 'recurring' | 'one-off';
+export type PaymentMethod =
+  | 'cash'
+  | 'debit-card'
+  | 'credit-card'
+  | 'bank-transfer'
+  | 'paypal'
+  | 'apple-pay'
+  | 'other';
 export type Confidence = 'low' | 'medium' | 'high';
 export type PurchaseType = 'one-time' | 'financing';
 export type PurchasePriority = 'low' | 'medium' | 'high';
@@ -26,11 +34,14 @@ export type Expense = {
   id: string;
   name: string;
   amount: number;
-  cadence: ExpenseCadence;
+  cadence?: ExpenseCadence;
   category: Category;
   kind: ExpenseKind;
   startDate: string;
   endDate?: string;
+  merchant?: string;
+  paymentMethod?: PaymentMethod;
+  tags: string[];
   notes?: string;
   linkedDocumentId?: string;
   createdAt: string;
@@ -91,8 +102,11 @@ export type PurchaseDecision = {
   currentSavings: number;
   monthlyIncome: number;
   monthlyFinancingAmount?: number;
-  fixedMonthlyCosts: number;
-  variableMonthlyCosts: number;
+  recurringMonthlyLoad: number;
+  oneOffMonthlySpending: number;
+  totalMonthlyPressure: number;
+  fixedMonthlyCosts?: number;
+  variableMonthlyCosts?: number;
   monthlyImpact: number;
   bufferAfterPurchase: number;
   status: PurchaseStatus;

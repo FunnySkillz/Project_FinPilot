@@ -4,12 +4,12 @@ FinPilot is a mobile-first personal finance and insurance cockpit built with Exp
 
 The current MVP is local-first and backend-ready:
 
-- Manual expense tracking with fixed and variable monthly summaries
+- Manual expense notes for recurring commitments and one-off daily spending
 - Document vault for PDF/JPG/PNG uploads plus editable metadata
 - Seeded sample data for contracts, insurance, fines, and warranty receipts
 - Placeholder OCR analysis behind a replaceable service boundary
 - Grounded document Q&A placeholders that always state uncertainty
-- Purchase risk checks based on income, savings, fixed costs, and buffer targets
+- Purchase risk checks based on income, savings, monthly pressure, and buffer targets
 - Blueprint production shell with onboarding, runtime theme mode, i18n, and app lock
 
 ## UI stack

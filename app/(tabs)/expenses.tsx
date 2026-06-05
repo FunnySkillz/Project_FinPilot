@@ -3,7 +3,6 @@ import { Alert } from 'react-native';
 import { Plus, Save, Trash2 } from 'lucide-react-native';
 
 import { AppScreen, Stack } from '@/components/finpilot/app-screen';
-import { CategoryBadge } from '@/components/finpilot/badges';
 import { Card, SectionHeader } from '@/components/finpilot/card';
 import { Button, Field, SegmentedControl } from '@/components/finpilot/controls';
 import { ExpenseCard } from '@/components/finpilot/list-cards';
@@ -12,67 +11,140 @@ import { Box, Pressable } from '@/components/ui/gluestack';
 import { useFinPilot } from '@/context/finpilot-context';
 import { useLanguage } from '@/context/language-context';
 import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard';
-import type { Category, Expense, ExpenseCadence, ExpenseInput, ExpenseKind } from '@/types/finpilot';
-import { CADENCES, CATEGORIES, EXPENSE_KINDS, monthlyRecurringExpense } from '@/utils/finance';
+import type { Category, Expense, ExpenseCadence, ExpenseInput, ExpenseKind, PaymentMethod } from '@/types/finpilot';
+import { CADENCES, CATEGORIES, EXPENSE_KINDS, PAYMENT_METHODS, calculateFinanceSummary } from '@/utils/finance';
 import { formatCurrency } from '@/utils/formatters';
+
+type ExpenseKindFilter = ExpenseKind | 'all';
+type PaymentMethodOption = PaymentMethod | 'none';
 
 type ExpenseForm = {
   name: string;
   amount: string;
+  kind: ExpenseKind;
   cadence: ExpenseCadence;
   category: Category;
-  kind: ExpenseKind;
   startDate: string;
   endDate: string;
+  merchant: string;
+  paymentMethod: PaymentMethodOption;
+  tags: string;
   notes: string;
   linkedDocumentId?: string;
 };
 
-const emptyForm: ExpenseForm = {
-  name: '',
-  amount: '',
-  cadence: 'monthly',
-  category: 'Other',
-  kind: 'fixed',
-  startDate: new Date().toISOString().slice(0, 10),
-  endDate: '',
-  notes: '',
-};
+const PAYMENT_METHOD_OPTIONS: PaymentMethodOption[] = ['none', ...PAYMENT_METHODS];
+const EXPENSE_KIND_FILTERS: ExpenseKindFilter[] = ['all', ...EXPENSE_KINDS];
+const CATEGORY_FILTERS: (Category | 'All')[] = ['All', ...CATEGORIES];
+
+function todayString() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function createEmptyForm(kind: ExpenseKind = 'recurring'): ExpenseForm {
+  return {
+    name: '',
+    amount: '',
+    kind,
+    cadence: 'monthly',
+    category: 'Other',
+    startDate: todayString(),
+    endDate: '',
+    merchant: '',
+    paymentMethod: 'none',
+    tags: '',
+    notes: '',
+  };
+}
 
 function formFromExpense(expense: Expense): ExpenseForm {
   return {
     name: expense.name,
     amount: String(expense.amount),
-    cadence: expense.cadence,
-    category: expense.category,
     kind: expense.kind,
+    cadence: expense.cadence ?? 'monthly',
+    category: expense.category,
     startDate: expense.startDate,
     endDate: expense.endDate ?? '',
+    merchant: expense.merchant ?? '',
+    paymentMethod: expense.paymentMethod ?? 'none',
+    tags: expense.tags.join(', '),
     notes: expense.notes ?? '',
     linkedDocumentId: expense.linkedDocumentId,
   };
 }
 
+function parseTags(value: string) {
+  return value
+    .split(',')
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+}
+
+function paymentMethodLabelKey(paymentMethod: PaymentMethodOption) {
+  return paymentMethod === 'none' ? 'expenses.payment.none' : (`expenses.payment.${paymentMethod}` as const);
+}
+
+function cadenceLabelKey(cadence: ExpenseCadence) {
+  return `expenses.cadence.${cadence}` as const;
+}
+
+function kindLabelKey(kind: ExpenseKind) {
+  return kind === 'recurring' ? 'expenses.recurring' : 'expenses.oneOff';
+}
+
+function matchesSearch(expense: Expense, query: string) {
+  if (!query) {
+    return true;
+  }
+
+  return [expense.name, expense.merchant, expense.notes, ...expense.tags]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase()
+    .includes(query);
+}
+
 export default function ExpensesScreen() {
   const { state, addExpense, updateExpense, deleteExpense } = useFinPilot();
-  const { locale } = useLanguage();
+  const { locale, t } = useLanguage();
+  const [selectedKind, setSelectedKind] = useState<ExpenseKindFilter>('all');
   const [selectedCategory, setSelectedCategory] = useState<Category | 'All'>('All');
+  const [query, setQuery] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | undefined>();
-  const [form, setForm] = useState<ExpenseForm>(emptyForm);
+  const [form, setForm] = useState<ExpenseForm>(() => createEmptyForm());
   const [isSaving, setIsSaving] = useState(false);
-  const hasUnsavedChanges = showForm && Boolean(editingId || form.name || form.amount || form.notes);
+  const hasUnsavedChanges =
+    showForm &&
+    Boolean(
+      editingId ||
+        form.name ||
+        form.amount ||
+        form.merchant ||
+        form.tags ||
+        form.notes ||
+        form.linkedDocumentId,
+    );
 
   useUnsavedChangesGuard(hasUnsavedChanges);
 
-  const filteredExpenses = useMemo(
-    () =>
-      selectedCategory === 'All'
-        ? state.expenses
-        : state.expenses.filter((expense) => expense.category === selectedCategory),
-    [selectedCategory, state.expenses],
-  );
-  const monthlyTotal = filteredExpenses.reduce((sum, expense) => sum + monthlyRecurringExpense(expense), 0);
+  const filteredExpenses = useMemo(() => {
+    const cleanQuery = query.trim().toLowerCase();
+
+    return state.expenses.filter((expense) => {
+      const matchesKind = selectedKind === 'all' || expense.kind === selectedKind;
+      const matchesCategory = selectedCategory === 'All' || expense.category === selectedCategory;
+
+      return matchesKind && matchesCategory && matchesSearch(expense, cleanQuery);
+    });
+  }, [query, selectedCategory, selectedKind, state.expenses]);
+  const summary = calculateFinanceSummary(filteredExpenses, state.settings.monthlyIncome);
+
+  const resetForm = (kind: ExpenseKind = 'recurring') => {
+    setEditingId(undefined);
+    setForm(createEmptyForm(kind));
+  };
 
   const submit = async () => {
     if (isSaving) {
@@ -80,19 +152,37 @@ export default function ExpensesScreen() {
     }
 
     const amount = Number(form.amount.replace(',', '.'));
-    if (!form.name.trim() || !Number.isFinite(amount) || amount <= 0) {
-      Alert.alert('Missing information', 'Add a name and a positive amount.');
+    const hasValidAmount = Number.isFinite(amount) && amount > 0;
+    const hasDate = Boolean(form.startDate.trim());
+    const hasCadence = Boolean(form.cadence);
+
+    if (!form.name.trim() || !hasValidAmount || !form.category || !hasDate) {
+      Alert.alert(t('expenses.validationTitle'), t('expenses.validationBody'));
+      return;
+    }
+
+    if (form.kind === 'recurring' && !hasCadence) {
+      Alert.alert(t('expenses.validationTitle'), t('expenses.validationRecurring'));
+      return;
+    }
+
+    if (form.kind === 'one-off' && !hasDate) {
+      Alert.alert(t('expenses.validationTitle'), t('expenses.validationOneOff'));
       return;
     }
 
     const input: ExpenseInput = {
       name: form.name.trim(),
       amount,
-      cadence: form.cadence,
-      category: form.category,
       kind: form.kind,
-      startDate: form.startDate || new Date().toISOString().slice(0, 10),
-      endDate: form.endDate || undefined,
+      ...(form.kind === 'recurring'
+        ? { cadence: form.cadence, endDate: form.endDate || undefined }
+        : { cadence: undefined, endDate: undefined }),
+      category: form.category,
+      startDate: form.startDate.trim(),
+      merchant: form.merchant.trim() || undefined,
+      paymentMethod: form.paymentMethod === 'none' ? undefined : form.paymentMethod,
+      tags: parseTags(form.tags),
       notes: form.notes.trim() || undefined,
       linkedDocumentId: form.linkedDocumentId,
     };
@@ -105,11 +195,10 @@ export default function ExpensesScreen() {
         await addExpense(input);
       }
 
-      setEditingId(undefined);
-      setForm(emptyForm);
+      resetForm();
       setShowForm(false);
     } catch {
-      Alert.alert('Could not save expense', 'FinPilot could not update local expense data.');
+      Alert.alert(t('expenses.saveErrorTitle'), t('expenses.saveErrorBody'));
     } finally {
       setIsSaving(false);
     }
@@ -121,98 +210,137 @@ export default function ExpensesScreen() {
     setShowForm(true);
   };
 
+  const toggleForm = () => {
+    if (!showForm) {
+      resetForm(selectedKind === 'one-off' ? 'one-off' : 'recurring');
+    } else {
+      resetForm();
+    }
+
+    setShowForm((current) => !current);
+  };
+
   return (
     <AppScreen>
       <Stack gap={4}>
-        <Muted>Manual tracking</Muted>
-        <H1>Expenses</H1>
-        <Body>Track recurring pressure first. OCR and bank automation can plug into this model later.</Body>
+        <Muted>{t('expenses.eyebrow')}</Muted>
+        <H1>{t('expenses.title')}</H1>
+        <Body>{t('expenses.body')}</Body>
       </Stack>
 
-      <Box className="flex-row gap-2.5">
-        <Card className="flex-1">
-          <Muted>Visible monthly load</Muted>
+      <Box className="flex-row flex-wrap gap-2.5">
+        <Card className="min-w-[150px] flex-1">
+          <Muted>{t('expenses.monthlyLoad')}</Muted>
           <Body className="text-2xl font-extrabold leading-[30px]">
-            {formatCurrency(monthlyTotal, state.settings.currency, locale)}
+            {formatCurrency(summary.recurringMonthlyLoad, state.settings.currency, locale)}
           </Body>
         </Card>
-        <Card className="flex-1">
-          <Muted>Expense records</Muted>
+        <Card className="min-w-[150px] flex-1">
+          <Muted>{t('expenses.oneOffMonthlySpending')}</Muted>
+          <Body className="text-2xl font-extrabold leading-[30px]">
+            {formatCurrency(summary.oneOffMonthlySpending, state.settings.currency, locale)}
+          </Body>
+        </Card>
+        <Card className="min-w-[150px] flex-1">
+          <Muted>{t('expenses.records')}</Muted>
           <Body className="text-2xl font-extrabold leading-[30px]">{filteredExpenses.length}</Body>
         </Card>
       </Box>
 
       <SectionHeader
-        title="Expense list"
-        actionLabel={showForm ? 'Close' : 'Add'}
-        onAction={() => {
-          setEditingId(undefined);
-          setForm(emptyForm);
-          setShowForm((current) => !current);
-        }}
+        title={t('expenses.expenseList')}
+        actionLabel={showForm ? t('expenses.close') : t('expenses.add')}
+        onAction={toggleForm}
       />
 
       {showForm ? (
         <Card>
           <Stack>
+            <Stack gap={8}>
+              <Muted>{t('expenses.kind')}</Muted>
+              <SegmentedControl
+                values={EXPENSE_KINDS}
+                selected={form.kind}
+                onSelect={(kind) =>
+                  setForm((current) => ({
+                    ...current,
+                    kind,
+                    endDate: kind === 'one-off' ? '' : current.endDate,
+                  }))
+                }
+                getLabel={(kind) => t(kindLabelKey(kind))}
+              />
+            </Stack>
             <Field
-              label="Name"
+              label={t('expenses.name')}
               value={form.name}
               onChangeText={(name) => setForm((current) => ({ ...current, name }))}
-              placeholder="ARAG Rechtsschutz"
+              placeholder={t('expenses.namePlaceholder')}
             />
             <Field
-              label="Amount"
+              label={t('expenses.amount')}
               value={form.amount}
               onChangeText={(amount) => setForm((current) => ({ ...current, amount }))}
               keyboardType="decimal-pad"
               placeholder="23"
             />
             <Stack gap={8}>
-              <Muted>Cadence</Muted>
-              <SegmentedControl
-                values={CADENCES}
-                selected={form.cadence}
-                onSelect={(cadence) => setForm((current) => ({ ...current, cadence }))}
-              />
-            </Stack>
-            <Stack gap={8}>
-              <Muted>Kind</Muted>
-              <SegmentedControl
-                values={EXPENSE_KINDS}
-                selected={form.kind}
-                onSelect={(kind) => setForm((current) => ({ ...current, kind }))}
-              />
-            </Stack>
-            <Stack gap={8}>
-              <Muted>Category</Muted>
+              <Muted>{t('expenses.category')}</Muted>
               <SegmentedControl
                 values={CATEGORIES}
                 selected={form.category}
                 onSelect={(category) => setForm((current) => ({ ...current, category }))}
               />
             </Stack>
+            {form.kind === 'recurring' ? (
+              <Stack gap={8}>
+                <Muted>{t('expenses.cadence')}</Muted>
+                <SegmentedControl
+                  values={CADENCES}
+                  selected={form.cadence}
+                  onSelect={(cadence) => setForm((current) => ({ ...current, cadence }))}
+                  getLabel={(cadence) => t(cadenceLabelKey(cadence))}
+                />
+              </Stack>
+            ) : null}
             <Field
-              label="Start date"
+              label={form.kind === 'recurring' ? t('expenses.startDate') : t('expenses.date')}
               value={form.startDate}
               onChangeText={(startDate) => setForm((current) => ({ ...current, startDate }))}
               placeholder="YYYY-MM-DD"
             />
+            {form.kind === 'recurring' ? (
+              <Field
+                label={t('expenses.endDate')}
+                value={form.endDate}
+                onChangeText={(endDate) => setForm((current) => ({ ...current, endDate }))}
+                placeholder="YYYY-MM-DD"
+              />
+            ) : null}
             <Field
-              label="End date or cancellation deadline"
-              value={form.endDate}
-              onChangeText={(endDate) => setForm((current) => ({ ...current, endDate }))}
-              placeholder="YYYY-MM-DD"
-            />
-            <Field
-              label="Notes"
-              value={form.notes}
-              onChangeText={(notes) => setForm((current) => ({ ...current, notes }))}
-              multiline
-              placeholder="Coverage notes, cancellation terms, or context"
+              label={t('expenses.merchant')}
+              value={form.merchant}
+              onChangeText={(merchant) => setForm((current) => ({ ...current, merchant }))}
+              placeholder={t('expenses.merchantPlaceholder')}
             />
             <Stack gap={8}>
-              <Muted>Linked document</Muted>
+              <Muted>{t('expenses.paymentMethod')}</Muted>
+              <SegmentedControl
+                values={PAYMENT_METHOD_OPTIONS}
+                selected={form.paymentMethod}
+                onSelect={(paymentMethod) => setForm((current) => ({ ...current, paymentMethod }))}
+                getLabel={(paymentMethod) => t(paymentMethodLabelKey(paymentMethod))}
+              />
+            </Stack>
+            <Field
+              label={t('expenses.tags')}
+              value={form.tags}
+              onChangeText={(tags) => setForm((current) => ({ ...current, tags }))}
+              placeholder={t('expenses.tagsPlaceholder')}
+              helper={t('expenses.tagsHelper')}
+            />
+            <Stack gap={8}>
+              <Muted>{t('expenses.linkedDocument')}</Muted>
               <Box className="flex-row flex-wrap gap-2">
                 <Pressable
                   onPress={() => setForm((current) => ({ ...current, linkedDocumentId: undefined }))}
@@ -220,7 +348,7 @@ export default function ExpensesScreen() {
                     !form.linkedDocumentId ? 'border-fin-primary bg-fin-primary' : 'border-fin-border'
                   }`}>
                   <Body className={`text-xs ${!form.linkedDocumentId ? 'font-extrabold text-fin-textOnPrimary' : ''}`}>
-                    None
+                    {t('expenses.none')}
                   </Body>
                 </Pressable>
                 {state.documents.slice(0, 8).map((document) => {
@@ -240,8 +368,15 @@ export default function ExpensesScreen() {
                 })}
               </Box>
             </Stack>
+            <Field
+              label={t('expenses.notes')}
+              value={form.notes}
+              onChangeText={(notes) => setForm((current) => ({ ...current, notes }))}
+              multiline
+              placeholder={t('expenses.notesPlaceholder')}
+            />
             <Button onPress={submit} icon={editingId ? Save : Plus} disabled={isSaving}>
-              {isSaving ? 'Saving' : editingId ? 'Save expense' : 'Add expense'}
+              {isSaving ? t('expenses.saving') : editingId ? t('expenses.saveExpense') : t('expenses.addExpense')}
             </Button>
             {editingId ? (
               <Button
@@ -252,42 +387,56 @@ export default function ExpensesScreen() {
                   setIsSaving(true);
                   try {
                     await deleteExpense(editingId);
-                    setEditingId(undefined);
+                    resetForm();
                     setShowForm(false);
-                    setForm(emptyForm);
                   } catch {
-                    Alert.alert('Could not delete expense', 'FinPilot could not remove this local expense.');
+                    Alert.alert(t('expenses.deleteErrorTitle'), t('expenses.deleteErrorBody'));
                   } finally {
                     setIsSaving(false);
                   }
                 }}>
-                Delete expense
+                {t('expenses.deleteExpense')}
               </Button>
             ) : null}
           </Stack>
         </Card>
       ) : null}
 
+      <Field
+        label={t('expenses.search')}
+        value={query}
+        onChangeText={setQuery}
+        placeholder={t('expenses.searchPlaceholder')}
+      />
+
       <Stack gap={8}>
-        <Muted>Filter</Muted>
+        <Muted>{t('expenses.filterType')}</Muted>
         <SegmentedControl
-          values={['All', ...CATEGORIES]}
+          values={EXPENSE_KIND_FILTERS}
+          selected={selectedKind}
+          onSelect={(kind) => setSelectedKind(kind)}
+          getLabel={(kind) => (kind === 'all' ? t('expenses.all') : t(kindLabelKey(kind)))}
+        />
+      </Stack>
+
+      <Stack gap={8}>
+        <Muted>{t('expenses.filterCategory')}</Muted>
+        <SegmentedControl
+          values={CATEGORY_FILTERS}
           selected={selectedCategory}
           onSelect={(category) => setSelectedCategory(category)}
+          getLabel={(category) => (category === 'All' ? t('expenses.all') : category)}
         />
       </Stack>
 
       <Stack>
         {filteredExpenses.length === 0 ? (
           <Card>
-            <Muted>No expenses in this filter yet.</Muted>
+            <Muted>{t('expenses.empty')}</Muted>
           </Card>
         ) : (
           filteredExpenses.map((expense) => (
-            <Box key={expense.id} className="gap-2">
-              <ExpenseCard expense={expense} onPress={() => startEditing(expense)} />
-              <CategoryBadge category={expense.category} />
-            </Box>
+            <ExpenseCard key={expense.id} expense={expense} onPress={() => startEditing(expense)} />
           ))
         )}
       </Stack>

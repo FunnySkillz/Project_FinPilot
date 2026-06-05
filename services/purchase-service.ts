@@ -62,8 +62,9 @@ export const purchaseService = {
     return {
       id: newId('purchase'),
       ...input,
-      fixedMonthlyCosts: summary.fixedMonthly,
-      variableMonthlyCosts: summary.variableMonthly,
+      recurringMonthlyLoad: summary.recurringMonthlyLoad,
+      oneOffMonthlySpending: summary.oneOffMonthlySpending,
+      totalMonthlyPressure: summary.totalMonthlyPressure,
       monthlyImpact,
       bufferAfterPurchase,
       status,
@@ -78,4 +79,3 @@ export const purchaseService = {
     };
   },
 };
-

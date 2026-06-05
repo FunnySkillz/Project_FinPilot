@@ -1,4 +1,4 @@
-import type { Category, Expense, ExpenseCadence, ExpenseKind } from '@/types/finpilot';
+import type { Category, Expense, ExpenseCadence, ExpenseKind, PaymentMethod } from '@/types/finpilot';
 
 export const CATEGORIES: Category[] = [
   'Housing',
@@ -14,53 +14,88 @@ export const CATEGORIES: Category[] = [
   'Other',
 ];
 
-export const CADENCES: ExpenseCadence[] = ['monthly', 'yearly', 'one-time'];
-export const EXPENSE_KINDS: ExpenseKind[] = ['fixed', 'variable'];
+export const CADENCES: ExpenseCadence[] = ['monthly', 'yearly'];
+export const EXPENSE_KINDS: ExpenseKind[] = ['recurring', 'one-off'];
+export const PAYMENT_METHODS: PaymentMethod[] = [
+  'cash',
+  'debit-card',
+  'credit-card',
+  'bank-transfer',
+  'paypal',
+  'apple-pay',
+  'other',
+];
 
-export function normalizeMonthlyExpense(expense: Pick<Expense, 'amount' | 'cadence'>) {
-  if (expense.cadence === 'yearly') {
-    return expense.amount / 12;
+function parseLocalDate(value?: string) {
+  if (!value) {
+    return null;
   }
 
-  if (expense.cadence === 'one-time') {
-    return expense.amount;
+  const dateParts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (dateParts) {
+    const [, year, month, day] = dateParts;
+    return new Date(Number(year), Number(month) - 1, Number(day));
   }
 
-  return expense.amount;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
-export function monthlyRecurringExpense(expense: Pick<Expense, 'amount' | 'cadence'>) {
-  if (expense.cadence === 'one-time') {
+export function recurringMonthlyExpense(expense: Pick<Expense, 'amount' | 'cadence' | 'kind'>) {
+  if (expense.kind !== 'recurring' || !expense.cadence) {
     return 0;
   }
 
-  return normalizeMonthlyExpense(expense);
+  return expense.cadence === 'yearly' ? expense.amount / 12 : expense.amount;
 }
 
-export function calculateFinanceSummary(expenses: Expense[], monthlyIncome: number) {
-  const recurringExpenses = expenses.filter((expense) => expense.cadence !== 'one-time');
-  const fixedMonthly = recurringExpenses
-    .filter((expense) => expense.kind === 'fixed')
-    .reduce((sum, expense) => sum + monthlyRecurringExpense(expense), 0);
-  const variableMonthly = recurringExpenses
-    .filter((expense) => expense.kind === 'variable')
-    .reduce((sum, expense) => sum + monthlyRecurringExpense(expense), 0);
-  const totalMonthly = fixedMonthly + variableMonthly;
+export function isOneOffExpenseInMonth(
+  expense: Pick<Expense, 'kind' | 'startDate'>,
+  referenceDate = new Date(),
+) {
+  if (expense.kind !== 'one-off') {
+    return false;
+  }
+
+  const date = parseLocalDate(expense.startDate);
+  if (!date) {
+    return false;
+  }
+
+  return date.getFullYear() === referenceDate.getFullYear() && date.getMonth() === referenceDate.getMonth();
+}
+
+export function oneOffSpendingForMonth(expenses: Expense[], referenceDate = new Date()) {
+  return expenses
+    .filter((expense) => isOneOffExpenseInMonth(expense, referenceDate))
+    .reduce((sum, expense) => sum + expense.amount, 0);
+}
+
+export function calculateFinanceSummary(expenses: Expense[], monthlyIncome: number, referenceDate = new Date()) {
+  const recurringMonthlyLoad = expenses.reduce((sum, expense) => sum + recurringMonthlyExpense(expense), 0);
+  const oneOffMonthlySpending = oneOffSpendingForMonth(expenses, referenceDate);
+  const totalMonthlyPressure = recurringMonthlyLoad + oneOffMonthlySpending;
 
   return {
-    fixedMonthly,
-    variableMonthly,
-    totalMonthly,
-    remainingMonthly: monthlyIncome - totalMonthly,
-    yearlyRecurring: totalMonthly * 12,
+    recurringMonthlyLoad,
+    oneOffMonthlySpending,
+    totalMonthlyPressure,
+    remainingMonthly: monthlyIncome - totalMonthlyPressure,
+    yearlyRecurring: recurringMonthlyLoad * 12,
   };
 }
 
-export function categoryTotals(expenses: Expense[]) {
+export function categoryTotals(expenses: Expense[], referenceDate = new Date()) {
   return CATEGORIES.map((category) => {
     const total = expenses
       .filter((expense) => expense.category === category)
-      .reduce((sum, expense) => sum + monthlyRecurringExpense(expense), 0);
+      .reduce((sum, expense) => {
+        if (expense.kind === 'recurring') {
+          return sum + recurringMonthlyExpense(expense);
+        }
+
+        return isOneOffExpenseInMonth(expense, referenceDate) ? sum + expense.amount : sum;
+      }, 0);
 
     return { category, total };
   })
@@ -72,7 +107,7 @@ export function upcomingDeadlines(expenses: Expense[], limit = 5) {
   const today = new Date();
 
   return expenses
-    .filter((expense) => Boolean(expense.endDate))
+    .filter((expense) => expense.kind === 'recurring' && Boolean(expense.endDate))
     .map((expense) => ({
       expense,
       date: new Date(expense.endDate as string),
@@ -104,4 +139,3 @@ export function categoryColor(category: Category) {
 export function newId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
-
