@@ -3,15 +3,25 @@
     "name": "FinPilot",
     "slug": "FinPilot",
     "version": "1.0.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "finpilot",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.funnyskillz.finpilot",
+      "icon": "./assets/images/icon.png",
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "Allow FinPilot to use Face ID to unlock your financial documents.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
+      "package": "com.funnyskillz.finpilot",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -40,11 +50,27 @@
           }
         }
       ],
-      "expo-secure-store"
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow FinPilot to use Face ID to unlock your financial documents."
+        }
+      ],
+      "expo-secure-store",
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "07126557-2031-4b4e-86ba-ded22804fa82"
+      }
+    },
+    "updates": {
+      "url": "https://u.expo.dev/07126557-2031-4b4e-86ba-ded22804fa82"
     }
   }
 }
