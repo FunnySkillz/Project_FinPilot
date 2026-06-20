@@ -94,6 +94,8 @@ function ShellGate({ resolvedMode }: { resolvedMode: ThemeModeResolved }) {
         name="document/[id]"
         options={{
           headerShown: true,
+          headerBackButtonDisplayMode: 'minimal',
+          headerBackTitle: '',
           title: t('navigation.stack.documentDetail'),
           presentation: 'card',
         }}
