@@ -159,4 +159,5 @@ export type OnboardingInput = {
   language: AppLanguage;
   themeMode: ThemeMode;
   useSampleData: boolean;
+  initialExpenses?: ExpenseInput[];
 };

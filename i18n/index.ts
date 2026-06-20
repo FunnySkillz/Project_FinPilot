@@ -1,4 +1,12 @@
-import type { AppLanguage, AppLocale } from '@/types/finpilot';
+import type {
+  AppLanguage,
+  AppLocale,
+  Category,
+  Confidence,
+  PurchasePriority,
+  PurchaseStatus,
+  PurchaseType,
+} from '@/types/finpilot';
 import { enMessages } from '@/i18n/messages/en';
 import { deMessages } from '@/i18n/messages/de';
 
@@ -37,3 +45,22 @@ export function translate(language: AppLanguage, key: TranslationKey, values?: I
   return interpolate(template, values);
 }
 
+export function categoryLabelKey(category: Category): TranslationKey {
+  return `category.${category}` as TranslationKey;
+}
+
+export function confidenceLabelKey(confidence: Confidence): TranslationKey {
+  return `confidence.${confidence}` as TranslationKey;
+}
+
+export function purchaseStatusLabelKey(status: PurchaseStatus): TranslationKey {
+  return `status.${status}` as TranslationKey;
+}
+
+export function purchaseTypeLabelKey(type: PurchaseType): TranslationKey {
+  return `purchase.type.${type}` as TranslationKey;
+}
+
+export function purchasePriorityLabelKey(priority: PurchasePriority): TranslationKey {
+  return `purchase.priority.${priority}` as TranslationKey;
+}

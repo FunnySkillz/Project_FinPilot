@@ -1,5 +1,5 @@
 import { Alert } from 'react-native';
-import { RotateCcw, Trash2 } from 'lucide-react-native';
+import { RefreshCcw, RotateCcw, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
 
 import { AppScreen, Stack } from '@/components/finpilot/app-screen';
@@ -10,7 +10,7 @@ import { useFinPilot } from '@/context/finpilot-context';
 import { useLanguage } from '@/context/language-context';
 
 export default function DataSettingsScreen() {
-  const { resetWithSamples, resetEmpty } = useFinPilot();
+  const { resetWithSamples, resetEmpty, resetOnboarding } = useFinPilot();
   const { t } = useLanguage();
   const [isBusy, setIsBusy] = useState(false);
 
@@ -46,6 +46,18 @@ export default function DataSettingsScreen() {
               ]);
             }}>
             {isBusy ? t('common.loading') : t('settings.data.resetSamples')}
+          </Button>
+          <Button
+            variant="secondary"
+            icon={RefreshCcw}
+            disabled={isBusy}
+            onPress={() => {
+              Alert.alert(t('settings.data.setupTitle'), t('settings.data.setupBody'), [
+                { text: t('common.cancel'), style: 'cancel' },
+                { text: t('common.reset'), onPress: () => runReset(resetOnboarding) },
+              ]);
+            }}>
+            {t('settings.data.runSetup')}
           </Button>
           <Button
             variant="danger"

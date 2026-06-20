@@ -9,12 +9,13 @@ import type {
   Category,
   Expense,
   ExpenseCadence,
+  ExpenseInput,
   ExpenseKind,
   FinPilotState,
   PaymentMethod,
   ThemeMode,
 } from '@/types/finpilot';
-import { CATEGORIES } from '@/utils/finance';
+import { CATEGORIES, newId } from '@/utils/finance';
 
 const STORAGE_KEY = 'finpilot.state.v1';
 export const CURRENT_STATE_VERSION = 3;
@@ -120,6 +121,20 @@ function normalizeExpense(expense: StoredExpense, index: number): Expense {
   };
 }
 
+function createInitialExpense(input: ExpenseInput, index: number): Expense {
+  const now = new Date().toISOString();
+
+  return normalizeExpense(
+    {
+      id: newId(`setup-${index}`),
+      ...input,
+      createdAt: now,
+      updatedAt: now,
+    },
+    index,
+  );
+}
+
 export function createEmptyState(settings?: Partial<AppSettings>): FinPilotState {
   return {
     version: CURRENT_STATE_VERSION,
@@ -204,7 +219,11 @@ export const storageService = {
     return empty;
   },
 
-  async completeOnboarding(settings: Partial<AppSettings>, useSampleData: boolean): Promise<FinPilotState> {
+  async completeOnboarding(
+    settings: Partial<AppSettings>,
+    useSampleData: boolean,
+    initialExpenses: ExpenseInput[] = [],
+  ): Promise<FinPilotState> {
     const next = useSampleData ? cloneSeedState() : createEmptyState();
     next.settings = normalizeSettings(
       {
@@ -217,6 +236,9 @@ export const storageService = {
       },
       useSampleData,
     );
+    if (!useSampleData) {
+      next.expenses = initialExpenses.map((expense, index) => createInitialExpense(expense, index));
+    }
     await this.saveState(next);
     return next;
   },

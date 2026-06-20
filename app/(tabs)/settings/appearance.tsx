@@ -4,9 +4,9 @@ import { SegmentedControl } from '@/components/finpilot/controls';
 import { Body, H1, Muted } from '@/components/finpilot/text';
 import { useLanguage } from '@/context/language-context';
 import { useThemeMode } from '@/context/theme-mode-context';
-import type { ThemeMode } from '@/types/finpilot';
+import type { ThemeMode, ThemeModeResolved } from '@/types/finpilot';
 
-function getThemeLabelKey(value: ThemeMode) {
+function getThemeLabelKey(value: ThemeMode | ThemeModeResolved) {
   if (value === 'light') {
     return 'theme.light';
   }
@@ -37,7 +37,7 @@ export default function AppearanceScreen() {
             getLabel={(value) => t(getThemeLabelKey(value))}
           />
           <Muted>
-            {t('theme.system')}: {resolvedMode}
+            {t('theme.system')}: {t(getThemeLabelKey(resolvedMode))}
           </Muted>
         </Stack>
       </Card>

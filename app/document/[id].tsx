@@ -12,6 +12,7 @@ import { Box, HStack } from '@/components/ui/gluestack';
 import { useFinPilot } from '@/context/finpilot-context';
 import { useLanguage } from '@/context/language-context';
 import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard';
+import { categoryLabelKey } from '@/i18n';
 import type { Category, DocumentInput, FinancialDocument } from '@/types/finpilot';
 import { CATEGORIES } from '@/utils/finance';
 import { formatCurrency, formatDate } from '@/utils/formatters';
@@ -42,7 +43,7 @@ export default function DocumentDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id: string }>();
   const { state, updateDocument, deleteDocument } = useFinPilot();
-  const { locale } = useLanguage();
+  const { locale, t } = useLanguage();
   const canGoBack = typeof router.canGoBack === 'function' ? router.canGoBack() : false;
   const document = useMemo(
     () => state.documents.find((item) => item.id === params.id),
@@ -71,9 +72,9 @@ export default function DocumentDetailScreen() {
     return (
       <AppScreen nativeHeader>
         <Card>
-          <Body>Document not found.</Body>
+          <Body>{t('documentDetail.notFound')}</Body>
           <Button onPress={() => (canGoBack ? router.back() : router.replace('/(tabs)/documents'))} icon={ArrowLeft}>
-            Go back
+            {t('documentDetail.goBack')}
           </Button>
         </Card>
       </AppScreen>
@@ -103,9 +104,9 @@ export default function DocumentDetailScreen() {
     try {
       await updateDocument(document.id, input);
       setBypassGuard(true);
-      Alert.alert('Saved', 'Document metadata and placeholder analysis were updated.');
+      Alert.alert(t('documentDetail.saveSuccessTitle'), t('documentDetail.saveSuccessBody'));
     } catch {
-      Alert.alert('Could not save document', 'FinPilot could not update this local document.');
+      Alert.alert(t('documents.saveErrorTitle'), t('documentDetail.saveErrorBody'));
     } finally {
       setIsSaving(false);
     }
@@ -114,7 +115,7 @@ export default function DocumentDetailScreen() {
   return (
     <AppScreen nativeHeader>
       <Stack gap={4}>
-        <Muted>Document detail</Muted>
+        <Muted>{t('documentDetail.eyebrow')}</Muted>
         <H1>{document.title}</H1>
         <HStack className="flex-wrap gap-2">
           <CategoryBadge category={document.category} />
@@ -125,26 +126,26 @@ export default function DocumentDetailScreen() {
       <Card>
         <Stack>
           <HStack className="justify-between">
-            <Muted>Provider</Muted>
-            <Body className="shrink text-right font-extrabold">{document.provider ?? 'Not set'}</Body>
+            <Muted>{t('documents.provider')}</Muted>
+            <Body className="shrink text-right font-extrabold">{document.provider ?? t('common.notSet')}</Body>
           </HStack>
           <HStack className="justify-between">
-            <Muted>Amount</Muted>
+            <Muted>{t('documents.amount')}</Muted>
             <Body className="shrink text-right font-extrabold">
-              {document.amount ? formatCurrency(document.amount, state.settings.currency, locale) : 'Not set'}
+              {document.amount ? formatCurrency(document.amount, state.settings.currency, locale) : t('common.notSet')}
             </Body>
           </HStack>
           <HStack className="justify-between">
-            <Muted>Date</Muted>
+            <Muted>{t('documents.documentDate')}</Muted>
             <Body className="shrink text-right font-extrabold">{formatDate(document.documentDate, locale)}</Body>
           </HStack>
           <HStack className="justify-between">
-            <Muted>File</Muted>
-            <Body className="shrink text-right font-extrabold">{document.fileName ?? 'Manual record'}</Body>
+            <Muted>{t('documentDetail.file')}</Muted>
+            <Body className="shrink text-right font-extrabold">{document.fileName ?? t('documents.manualRecord')}</Body>
           </HStack>
           {document.fileUri ? (
             <Button variant="secondary" icon={ExternalLink} onPress={() => Linking.openURL(document.fileUri!)}>
-              Open original file
+              {t('documentDetail.openOriginal')}
             </Button>
           ) : null}
         </Stack>
@@ -153,74 +154,83 @@ export default function DocumentDetailScreen() {
       {document.analysis ? (
         <Card className="border-fin-primary">
           <Stack>
-            <SectionHeader title="Placeholder analysis" />
+            <SectionHeader title={t('documentDetail.analysis')} />
             <Body>{document.analysis.summary}</Body>
             <Box className="gap-1.5 rounded-fin bg-fin-surfaceAlt p-2.5">
-              <Muted>Relevant excerpt</Muted>
+              <Muted>{t('common.relevantExcerpt')}</Muted>
               <Body>{document.analysis.excerpt}</Body>
             </Box>
-            <Muted>Covered signals: {document.analysis.coveredRisks.join(', ') || 'None detected'}</Muted>
-            <Muted>Warnings: {document.analysis.exclusions.join(', ') || 'No warnings detected'}</Muted>
+            <Muted>
+              {t('documentDetail.coveredSignals', {
+                value: document.analysis.coveredRisks.join(', ') || t('documentDetail.noneDetected'),
+              })}
+            </Muted>
+            <Muted>
+              {t('documentDetail.warnings', {
+                value: document.analysis.exclusions.join(', ') || t('documentDetail.noWarnings'),
+              })}
+            </Muted>
           </Stack>
         </Card>
       ) : null}
 
       <Card>
         <Stack>
-          <SectionHeader title="Correct metadata" />
+          <SectionHeader title={t('documentDetail.correctMetadata')} />
           <Field
-            label="Title"
+            label={t('documents.titleField')}
             value={form.title}
             onChangeText={(title) => setForm((current) => current && { ...current, title })}
           />
           <Field
-            label="Provider"
+            label={t('documents.provider')}
             value={form.provider}
             onChangeText={(provider) => setForm((current) => current && { ...current, provider })}
           />
           <Field
-            label="Amount"
+            label={t('documents.amount')}
             value={form.amount}
             onChangeText={(amount) => setForm((current) => current && { ...current, amount })}
             keyboardType="decimal-pad"
           />
           <Field
-            label="Document date"
+            label={t('documents.documentDate')}
             value={form.documentDate}
             onChangeText={(documentDate) => setForm((current) => current && { ...current, documentDate })}
             placeholder="YYYY-MM-DD"
           />
           <Stack gap={8}>
-            <Muted>Category</Muted>
+            <Muted>{t('documents.category')}</Muted>
             <SegmentedControl
               values={CATEGORIES}
               selected={form.category}
               onSelect={(category) => setForm((current) => current && { ...current, category })}
+              getLabel={(category) => t(categoryLabelKey(category))}
             />
           </Stack>
           <Field
-            label="Tags"
+            label={t('documents.tags')}
             value={form.tags}
             onChangeText={(tags) => setForm((current) => current && { ...current, tags })}
           />
           <Field
-            label="Notes"
+            label={t('documents.notes')}
             value={form.notes}
             onChangeText={(notes) => setForm((current) => current && { ...current, notes })}
             multiline
           />
           <Button onPress={save} icon={Save} disabled={isSaving || isDeleting}>
-            {isSaving ? 'Saving document' : 'Save document'}
+            {isSaving ? t('documents.saving') : t('documentDetail.saveDocument')}
           </Button>
           <Button
             variant="danger"
             icon={Trash2}
             disabled={isSaving || isDeleting}
             onPress={() => {
-              Alert.alert('Delete document', 'Remove this document from the local vault?', [
-                { text: 'Cancel', style: 'cancel' },
+              Alert.alert(t('documentDetail.deleteTitle'), t('documentDetail.deleteBody'), [
+                { text: t('common.cancel'), style: 'cancel' },
                 {
-                  text: 'Delete',
+                  text: t('common.delete'),
                   style: 'destructive',
                   onPress: async () => {
                     setIsDeleting(true);
@@ -234,7 +244,7 @@ export default function DocumentDetailScreen() {
                       }
                     } catch {
                       setBypassGuard(false);
-                      Alert.alert('Could not delete document', 'FinPilot could not remove this local document.');
+                      Alert.alert(t('documentDetail.deleteErrorTitle'), t('documentDetail.deleteErrorBody'));
                     } finally {
                       setIsDeleting(false);
                     }
@@ -242,7 +252,7 @@ export default function DocumentDetailScreen() {
                 },
               ]);
             }}>
-            {isDeleting ? 'Deleting document' : 'Delete document'}
+            {isDeleting ? t('documentDetail.deleting') : t('documentDetail.deleteDocument')}
           </Button>
         </Stack>
       </Card>

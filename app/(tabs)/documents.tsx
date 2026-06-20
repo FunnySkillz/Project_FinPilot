@@ -10,7 +10,9 @@ import { DocumentCard } from '@/components/finpilot/list-cards';
 import { Body, H1, Muted } from '@/components/finpilot/text';
 import { VStack } from '@/components/ui/gluestack';
 import { useFinPilot } from '@/context/finpilot-context';
+import { useLanguage } from '@/context/language-context';
 import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard';
+import { categoryLabelKey } from '@/i18n';
 import type { Category, DocumentInput } from '@/types/finpilot';
 import { CATEGORIES } from '@/utils/finance';
 
@@ -37,6 +39,7 @@ const emptyManualForm: ManualDocumentForm = {
 export default function DocumentsScreen() {
   const router = useRouter();
   const { state, pickAndAddDocument, addManualDocument } = useFinPilot();
+  const { t } = useLanguage();
   const [selectedCategory, setSelectedCategory] = useState<Category | 'All'>('All');
   const [query, setQuery] = useState('');
   const [isPicking, setIsPicking] = useState(false);
@@ -82,7 +85,7 @@ export default function DocumentsScreen() {
         router.push(`/document/${document.id}`);
       }
     } catch {
-      Alert.alert('Could not upload document', 'FinPilot could not copy this file into local storage.');
+      Alert.alert(t('documents.uploadErrorTitle'), t('documents.uploadErrorBody'));
     } finally {
       setIsPicking(false);
     }
@@ -90,10 +93,10 @@ export default function DocumentsScreen() {
 
   const toggleManualForm = () => {
     if (showManualForm && hasUnsavedManualForm) {
-      Alert.alert('Discard changes?', 'You have unsaved document metadata.', [
-        { text: 'Keep editing', style: 'cancel' },
+      Alert.alert(t('forms.discardTitle'), t('documents.discardManualBody'), [
+        { text: t('forms.keepEditing'), style: 'cancel' },
         {
-          text: 'Discard',
+          text: t('forms.discard'),
           style: 'destructive',
           onPress: () => {
             setManualForm(emptyManualForm);
@@ -114,7 +117,7 @@ export default function DocumentsScreen() {
 
     const amount = manualForm.amount ? Number(manualForm.amount.replace(',', '.')) : undefined;
     if (!manualForm.title.trim()) {
-      Alert.alert('Missing title', 'Add a document title first.');
+      Alert.alert(t('documents.missingTitleTitle'), t('documents.missingTitleBody'));
       return;
     }
 
@@ -137,7 +140,7 @@ export default function DocumentsScreen() {
       setManualForm(emptyManualForm);
       setShowManualForm(false);
     } catch {
-      Alert.alert('Could not save document', 'FinPilot could not create this local document record.');
+      Alert.alert(t('documents.saveErrorTitle'), t('documents.saveErrorBody'));
     } finally {
       setIsSavingManual(false);
     }
@@ -146,21 +149,21 @@ export default function DocumentsScreen() {
   return (
     <AppScreen>
       <Stack gap={4}>
-        <Muted>Document vault</Muted>
-        <H1>Documents</H1>
-        <Body>Upload PDFs or images, keep the metadata editable, and let FinPilot make them searchable.</Body>
+        <Muted>{t('documents.eyebrow')}</Muted>
+        <H1>{t('documents.title')}</H1>
+        <Body>{t('documents.body')}</Body>
       </Stack>
 
       <VStack className="gap-2.5">
         <Button onPress={upload} icon={Upload} disabled={isPicking || isSavingManual}>
-          {isPicking ? 'Opening picker' : 'Upload PDF/image'}
+          {isPicking ? t('documents.openingPicker') : t('documents.uploadAction')}
         </Button>
         <Button
           variant="secondary"
           icon={showManualForm ? X : Edit3}
           onPress={toggleManualForm}
           disabled={isPicking || isSavingManual}>
-          {showManualForm ? 'Close manual form' : 'Manual record'}
+          {showManualForm ? t('documents.closeManualForm') : t('documents.manualRecord')}
         </Button>
       </VStack>
 
@@ -168,73 +171,82 @@ export default function DocumentsScreen() {
         <Card>
           <Stack>
             <Field
-              label="Title"
+              label={t('documents.titleField')}
               value={manualForm.title}
               onChangeText={(title) => setManualForm((current) => ({ ...current, title }))}
-              placeholder="Warranty receipt"
+              placeholder={t('documents.titlePlaceholder')}
             />
             <Field
-              label="Provider"
+              label={t('documents.provider')}
               value={manualForm.provider}
               onChangeText={(provider) => setManualForm((current) => ({ ...current, provider }))}
-              placeholder="MediaMarkt"
+              placeholder={t('documents.providerPlaceholder')}
             />
             <Field
-              label="Amount"
+              label={t('documents.amount')}
               value={manualForm.amount}
               onChangeText={(amount) => setManualForm((current) => ({ ...current, amount }))}
               keyboardType="decimal-pad"
               placeholder="699"
             />
             <Field
-              label="Document date"
+              label={t('documents.documentDate')}
               value={manualForm.documentDate}
               onChangeText={(documentDate) => setManualForm((current) => ({ ...current, documentDate }))}
               placeholder="YYYY-MM-DD"
             />
             <Stack gap={8}>
-              <Muted>Category</Muted>
+              <Muted>{t('documents.category')}</Muted>
               <SegmentedControl
                 values={CATEGORIES}
                 selected={manualForm.category}
                 onSelect={(category) => setManualForm((current) => ({ ...current, category }))}
+                getLabel={(category) => t(categoryLabelKey(category))}
               />
             </Stack>
             <Field
-              label="Tags"
+              label={t('documents.tags')}
               value={manualForm.tags}
               onChangeText={(tags) => setManualForm((current) => ({ ...current, tags }))}
-              placeholder="invoice, warranty, household"
+              placeholder={t('documents.tagsPlaceholder')}
             />
             <Field
-              label="Notes"
+              label={t('documents.notes')}
               value={manualForm.notes}
               onChangeText={(notes) => setManualForm((current) => ({ ...current, notes }))}
               multiline
-              placeholder="Anything useful for future questions"
+              placeholder={t('documents.notesPlaceholder')}
             />
             <Button onPress={addManual} icon={Plus} disabled={isSavingManual}>
-              {isSavingManual ? 'Saving document' : 'Add manual document'}
+              {isSavingManual ? t('documents.saving') : t('documents.addManual')}
             </Button>
           </Stack>
         </Card>
       ) : null}
 
-      <Field label="Search vault" value={query} onChangeText={setQuery} placeholder="ARAG, warranty, fine..." />
+      <Field
+        label={t('documents.search')}
+        value={query}
+        onChangeText={setQuery}
+        placeholder={t('documents.searchPlaceholder')}
+      />
       <Stack gap={8}>
-        <Muted>Filter</Muted>
+        <Muted>{t('documents.filter')}</Muted>
         <SegmentedControl
           values={['All', ...CATEGORIES]}
           selected={selectedCategory}
           onSelect={(category) => setSelectedCategory(category)}
+          getLabel={(category) => (category === 'All' ? t('expenses.all') : t(categoryLabelKey(category)))}
         />
       </Stack>
 
-      <SectionHeader title={`${documents.length} document${documents.length === 1 ? '' : 's'}`} />
+      <SectionHeader
+        title={t(documents.length === 1 ? 'documents.countOne' : 'documents.count', { count: documents.length })}
+      />
       <Stack>
         {documents.length === 0 ? (
           <Card>
-            <Muted>No documents match this view.</Muted>
+            <Muted>{t('documents.empty')}</Muted>
           </Card>
         ) : (
           documents.map((document) => (

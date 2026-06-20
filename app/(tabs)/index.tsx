@@ -7,6 +7,7 @@ import { Body, H1, Muted } from '@/components/finpilot/text';
 import { Box, HStack, VStack } from '@/components/ui/gluestack';
 import { useFinPilot } from '@/context/finpilot-context';
 import { useLanguage } from '@/context/language-context';
+import { categoryLabelKey } from '@/i18n';
 import { calculateFinanceSummary, categoryColor, categoryTotals, upcomingDeadlines } from '@/utils/finance';
 import { formatCurrency, formatDate, percent } from '@/utils/formatters';
 
@@ -24,55 +25,57 @@ export default function DashboardScreen() {
   return (
     <AppScreen>
       <Stack gap={4}>
-        <Muted>FinPilot</Muted>
-        <H1>Your finance cockpit</H1>
-        <Body>Know what you pay, what is covered, and what you can afford.</Body>
+        <Muted>{t('dashboard.eyebrow')}</Muted>
+        <H1>{t('dashboard.title')}</H1>
+        <Body>{t('dashboard.body')}</Body>
       </Stack>
 
       <Box className="flex-row flex-wrap gap-2.5">
         <MetricCard
           label={t('expenses.monthlyLoad')}
           value={formatCurrency(summary.recurringMonthlyLoad, state.settings.currency, locale)}
-          helper="per month"
+          helper={t('dashboard.metric.perMonth')}
         />
         <MetricCard
           label={t('expenses.oneOffMonthlySpending')}
           value={formatCurrency(summary.oneOffMonthlySpending, state.settings.currency, locale)}
-          helper="current month"
+          helper={t('dashboard.metric.currentMonth')}
         />
         <MetricCard
           label={t('expenses.totalMonthlyPressure')}
           value={formatCurrency(summary.totalMonthlyPressure, state.settings.currency, locale)}
-          helper="estimated"
+          helper={t('dashboard.metric.estimated')}
         />
         <MetricCard
-          label="Remaining"
+          label={t('dashboard.metric.remaining')}
           value={formatCurrency(summary.remainingMonthly, state.settings.currency, locale)}
-          helper="after monthly pressure"
+          helper={t('dashboard.metric.afterMonthlyPressure')}
           tone={summary.remainingMonthly > 1000 ? 'safe' : summary.remainingMonthly > 0 ? 'warning' : 'danger'}
         />
       </Box>
 
       <Card className={summary.remainingMonthly < 600 ? 'border-fin-amber' : undefined}>
-        <Muted>Risk signal</Muted>
+        <Muted>{t('dashboard.risk.title')}</Muted>
         <Body className="font-extrabold">
           {summary.remainingMonthly < 0
-            ? 'Critical: monthly pressure exceeds monthly income.'
+            ? t('dashboard.risk.critical')
             : summary.remainingMonthly < 600
-              ? 'Risky: your monthly flexibility is thin.'
-              : 'Stable: your monthly pressure leaves room for decisions.'}
+              ? t('dashboard.risk.risky')
+              : t('dashboard.risk.stable')}
         </Body>
         <Muted>
-          Yearly recurring baseline: {formatCurrency(summary.yearlyRecurring, state.settings.currency, locale)}. Emergency buffer target:{' '}
-          {formatCurrency(state.settings.emergencyBufferGoal, state.settings.currency, locale)}.
+          {t('dashboard.risk.detail', {
+            yearly: formatCurrency(summary.yearlyRecurring, state.settings.currency, locale),
+            buffer: formatCurrency(state.settings.emergencyBufferGoal, state.settings.currency, locale),
+          })}
         </Muted>
       </Card>
 
       <Stack>
-        <SectionHeader title="Top categories" />
+        <SectionHeader title={t('dashboard.topCategories')} />
         <Card>
           {categories.length === 0 ? (
-            <Muted>No recurring expenses yet.</Muted>
+            <Muted>{t('dashboard.noRecurringExpenses')}</Muted>
           ) : (
             categories.map((item) => {
               const barWidth = percent(item.total, summary.totalMonthlyPressure);
@@ -80,7 +83,7 @@ export default function DashboardScreen() {
               return (
                 <VStack key={item.category} className="gap-1.5">
                   <HStack className="justify-between">
-                    <Body className="font-extrabold">{item.category}</Body>
+                    <Body className="font-extrabold">{t(categoryLabelKey(item.category))}</Body>
                     <Muted>{formatCurrency(item.total, state.settings.currency, locale)}</Muted>
                   </HStack>
                   <Box className="h-2.5 overflow-hidden rounded-fin bg-fin-surfaceAlt">
@@ -97,10 +100,14 @@ export default function DashboardScreen() {
       </Stack>
 
       <Stack>
-        <SectionHeader title="Upcoming deadlines" actionLabel="Expenses" onAction={() => router.push('/expenses')} />
+        <SectionHeader
+          title={t('dashboard.upcomingDeadlines')}
+          actionLabel={t('navigation.tabs.expenses')}
+          onAction={() => router.push('/expenses')}
+        />
         {deadlines.length === 0 ? (
           <Card>
-            <Muted>No upcoming contract deadlines found.</Muted>
+            <Muted>{t('dashboard.noUpcomingDeadlines')}</Muted>
           </Card>
         ) : (
           deadlines.map((expense) => (
@@ -108,7 +115,7 @@ export default function DashboardScreen() {
               <HStack className="justify-between">
                 <Box>
                   <Body className="font-extrabold">{expense.name}</Body>
-                  <Muted>{expense.category}</Muted>
+                  <Muted>{t(categoryLabelKey(expense.category))}</Muted>
                 </Box>
                 <Body className="font-extrabold">{formatDate(expense.endDate, locale)}</Body>
               </HStack>
@@ -118,7 +125,11 @@ export default function DashboardScreen() {
       </Stack>
 
       <Stack>
-        <SectionHeader title="Recent documents" actionLabel="Vault" onAction={() => router.push('/documents')} />
+        <SectionHeader
+          title={t('dashboard.recentDocuments')}
+          actionLabel={t('dashboard.vault')}
+          onAction={() => router.push('/documents')}
+        />
         {recentDocuments.map((document) => (
           <DocumentCard
             key={document.id}
@@ -129,8 +140,8 @@ export default function DashboardScreen() {
       </Stack>
 
       <Stack>
-        <SectionHeader title="Recent expense" />
-        {state.expenses[0] ? <ExpenseCard expense={state.expenses[0]} /> : <Muted>No expenses yet.</Muted>}
+        <SectionHeader title={t('dashboard.recentExpense')} />
+        {state.expenses[0] ? <ExpenseCard expense={state.expenses[0]} /> : <Muted>{t('dashboard.noExpenses')}</Muted>}
       </Stack>
     </AppScreen>
   );

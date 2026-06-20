@@ -11,6 +11,7 @@ import { Body, H1, Muted } from '@/components/finpilot/text';
 import { Box, HStack } from '@/components/ui/gluestack';
 import { useFinPilot } from '@/context/finpilot-context';
 import { useLanguage } from '@/context/language-context';
+import { purchasePriorityLabelKey, purchaseTypeLabelKey } from '@/i18n';
 import type { PurchaseDecision, PurchasePriority, PurchaseType } from '@/types/finpilot';
 import { calculateFinanceSummary } from '@/utils/finance';
 import { formatCurrency } from '@/utils/formatters';
@@ -30,7 +31,7 @@ export default function PurchaseScreen() {
   const { locale, t } = useLanguage();
   const finance = calculateFinanceSummary(state.expenses, state.settings.monthlyIncome);
   const [form, setForm] = useState<PurchaseForm>({
-    purchaseName: 'New wheels',
+    purchaseName: '',
     price: '6000',
     purchaseType: 'one-time',
     priority: 'medium',
@@ -47,7 +48,7 @@ export default function PurchaseScreen() {
     const monthlyFinancingAmount = Number(form.monthlyFinancingAmount.replace(',', '.'));
 
     if (!form.purchaseName.trim() || price <= 0 || currentSavings < 0 || monthlyIncome <= 0) {
-      Alert.alert('Missing information', 'Add a purchase name, price, savings, and monthly income.');
+      Alert.alert(t('purchase.validationTitle'), t('purchase.validationBody'));
       return;
     }
 
@@ -67,46 +68,51 @@ export default function PurchaseScreen() {
   return (
     <AppScreen>
       <Stack gap={4}>
-        <Muted>Personal CFO</Muted>
-        <H1>Purchase Check</H1>
-        <Body>Run emotional purchases through your real cost base before money leaves the account.</Body>
+        <Muted>{t('purchase.eyebrow')}</Muted>
+        <H1>{t('purchase.title')}</H1>
+        <Body>{t('purchase.body')}</Body>
       </Stack>
 
       <Box className="flex-row flex-wrap gap-2.5">
         <MetricCard
           label={t('expenses.monthlyLoad')}
           value={formatCurrency(finance.recurringMonthlyLoad, state.settings.currency, locale)}
-          helper="from recurring expenses"
+          helper={t('purchase.helper.fromRecurring')}
         />
-        <MetricCard label="Remaining cash flow" value={formatCurrency(finance.remainingMonthly, state.settings.currency, locale)} helper="monthly" />
+        <MetricCard
+          label={t('purchase.metric.remainingCashFlow')}
+          value={formatCurrency(finance.remainingMonthly, state.settings.currency, locale)}
+          helper={t('purchase.helper.monthly')}
+        />
       </Box>
 
       <Card>
         <Stack>
           <Field
-            label="Purchase"
+            label={t('purchase.purchase')}
             value={form.purchaseName}
             onChangeText={(purchaseName) => setForm((current) => ({ ...current, purchaseName }))}
-            placeholder="New wheels"
+            placeholder={t('purchase.placeholder.purchase')}
           />
           <Field
-            label="Price"
+            label={t('purchase.price')}
             value={form.price}
             onChangeText={(price) => setForm((current) => ({ ...current, price }))}
             keyboardType="decimal-pad"
             placeholder="6000"
           />
           <Stack gap={8}>
-            <Muted>Payment type</Muted>
+            <Muted>{t('purchase.paymentType')}</Muted>
             <SegmentedControl
               values={['one-time', 'financing']}
               selected={form.purchaseType}
               onSelect={(purchaseType) => setForm((current) => ({ ...current, purchaseType }))}
+              getLabel={(purchaseType) => t(purchaseTypeLabelKey(purchaseType))}
             />
           </Stack>
           {form.purchaseType === 'financing' ? (
             <Field
-              label="Monthly financing amount"
+              label={t('purchase.monthlyFinancingAmount')}
               value={form.monthlyFinancingAmount}
               onChangeText={(monthlyFinancingAmount) =>
                 setForm((current) => ({ ...current, monthlyFinancingAmount }))
@@ -116,29 +122,30 @@ export default function PurchaseScreen() {
             />
           ) : null}
           <Stack gap={8}>
-            <Muted>Priority</Muted>
+            <Muted>{t('purchase.priority')}</Muted>
             <SegmentedControl
               values={['low', 'medium', 'high']}
               selected={form.priority}
               onSelect={(priority) => setForm((current) => ({ ...current, priority }))}
+              getLabel={(priority) => t(purchasePriorityLabelKey(priority))}
             />
           </Stack>
           <Field
-            label="Current savings"
+            label={t('purchase.currentSavings')}
             value={form.currentSavings}
             onChangeText={(currentSavings) => setForm((current) => ({ ...current, currentSavings }))}
             keyboardType="decimal-pad"
             placeholder="9000"
           />
           <Field
-            label="Monthly income"
+            label={t('purchase.monthlyIncome')}
             value={form.monthlyIncome}
             onChangeText={(monthlyIncome) => setForm((current) => ({ ...current, monthlyIncome }))}
             keyboardType="decimal-pad"
             placeholder="4200"
           />
           <Button onPress={submit} icon={ShieldCheck}>
-            Check purchase
+            {t('purchase.checkPurchase')}
           </Button>
         </Stack>
       </Card>
@@ -146,23 +153,29 @@ export default function PurchaseScreen() {
       {decision ? (
         <Card className="border-fin-primary">
           <HStack className="justify-between">
-            <Body className="font-extrabold">Current verdict</Body>
+            <Body className="font-extrabold">{t('purchase.currentVerdict')}</Body>
             <StatusBadge status={decision.status} />
           </HStack>
           <Body>{decision.summary}</Body>
           <Box className="flex-row flex-wrap gap-2.5">
-            <MetricCard label="Monthly impact" value={formatCurrency(decision.monthlyImpact, state.settings.currency, locale)} />
-            <MetricCard label="Buffer after" value={formatCurrency(decision.bufferAfterPurchase, state.settings.currency, locale)} />
+            <MetricCard
+              label={t('purchase.monthlyImpact')}
+              value={formatCurrency(decision.monthlyImpact, state.settings.currency, locale)}
+            />
+            <MetricCard
+              label={t('purchase.bufferAfter')}
+              value={formatCurrency(decision.bufferAfterPurchase, state.settings.currency, locale)}
+            />
           </Box>
           <Body className="font-extrabold text-fin-primaryDark">{decision.recommendation}</Body>
         </Card>
       ) : null}
 
-      <SectionHeader title="Previous checks" />
+      <SectionHeader title={t('purchase.previousChecks')} />
       <Stack>
         {state.purchaseDecisions.length === 0 ? (
           <Card>
-            <Muted>No purchase checks yet.</Muted>
+            <Muted>{t('purchase.empty')}</Muted>
           </Card>
         ) : (
           state.purchaseDecisions.slice(0, 5).map((item) => <PurchaseDecisionCard key={item.id} decision={item} />)

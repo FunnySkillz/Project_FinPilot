@@ -24,6 +24,7 @@ import type {
   OnboardingInput,
   PurchaseDecision,
   PurchaseInput,
+  AppLanguage,
 } from '@/types/finpilot';
 import { newId } from '@/utils/finance';
 import { pinAuthService } from '@/services/pin-auth';
@@ -46,6 +47,7 @@ type FinPilotContextValue = {
   retryLoad: () => Promise<void>;
   resetWithSamples: () => Promise<void>;
   resetEmpty: () => Promise<void>;
+  resetOnboarding: () => Promise<void>;
 };
 
 const FinPilotContext = createContext<FinPilotContextValue | undefined>(undefined);
@@ -61,7 +63,7 @@ function createExpense(input: ExpenseInput): Expense {
   };
 }
 
-function createManualDocument(input: DocumentInput): FinancialDocument {
+function createManualDocument(input: DocumentInput, language: AppLanguage): FinancialDocument {
   const now = new Date().toISOString();
   const baseDocument: FinancialDocument = {
     id: newId('doc'),
@@ -70,12 +72,12 @@ function createManualDocument(input: DocumentInput): FinancialDocument {
     createdAt: now,
     updatedAt: now,
   };
-  const extractedText = analysisService.buildPlaceholderText(baseDocument);
+  const extractedText = analysisService.buildPlaceholderText(baseDocument, language);
   const documentWithText = { ...baseDocument, extractedText };
 
   return {
     ...documentWithText,
-    analysis: analysisService.analyzeDocument(documentWithText),
+    analysis: analysisService.analyzeDocument(documentWithText, language),
   };
 }
 
@@ -158,14 +160,14 @@ export function FinPilotProvider({ children }: PropsWithChildren) {
         }));
       },
       addManualDocument: async (input) => {
-        const document = createManualDocument(input);
+        const document = createManualDocument(input, state.settings.language);
         await commit((current) => ({
           ...current,
           documents: [document, ...current.documents],
         }));
       },
       pickAndAddDocument: async () => {
-        const document = await documentService.pickDocument();
+        const document = await documentService.pickDocument(state.settings.language);
 
         if (document) {
           await commit((current) => ({
@@ -191,12 +193,12 @@ export function FinPilotProvider({ children }: PropsWithChildren) {
             };
             const documentWithText = {
               ...updated,
-              extractedText: updated.extractedText ?? analysisService.buildPlaceholderText(updated),
+              extractedText: updated.extractedText ?? analysisService.buildPlaceholderText(updated, state.settings.language),
             };
 
             return {
               ...documentWithText,
-              analysis: analysisService.analyzeDocument(documentWithText),
+              analysis: analysisService.analyzeDocument(documentWithText, state.settings.language),
             };
           }),
         }));
@@ -211,7 +213,7 @@ export function FinPilotProvider({ children }: PropsWithChildren) {
         }));
       },
       answerQuestion: async (question) => {
-        const answer = assistantService.answerQuestion(question, state.documents);
+        const answer = assistantService.answerQuestion(question, state.documents, state.settings.language);
         await commit((current) => ({
           ...current,
           questions: [answer, ...current.questions],
@@ -219,7 +221,12 @@ export function FinPilotProvider({ children }: PropsWithChildren) {
         return answer;
       },
       evaluatePurchase: async (input) => {
-        const decision = purchaseService.evaluate(input, state.expenses, state.settings.emergencyBufferGoal);
+        const decision = purchaseService.evaluate(
+          input,
+          state.expenses,
+          state.settings.emergencyBufferGoal,
+          state.settings.language,
+        );
         await commit((current) => ({
           ...current,
           purchaseDecisions: [decision, ...current.purchaseDecisions],
@@ -244,6 +251,7 @@ export function FinPilotProvider({ children }: PropsWithChildren) {
             themeMode: input.themeMode,
           },
           input.useSampleData,
+          input.initialExpenses,
         );
         setState(next);
       },
@@ -256,6 +264,14 @@ export function FinPilotProvider({ children }: PropsWithChildren) {
       resetEmpty: async () => {
         await pinAuthService.clearPinAsync();
         const empty = await storageService.resetEmpty(state.settings);
+        setState(empty);
+      },
+      resetOnboarding: async () => {
+        await pinAuthService.clearPinAsync();
+        const empty = await storageService.resetEmpty({
+          ...state.settings,
+          hasCompletedOnboarding: false,
+        });
         setState(empty);
       },
     };

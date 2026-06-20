@@ -11,6 +11,7 @@ import { Box, Pressable } from '@/components/ui/gluestack';
 import { useFinPilot } from '@/context/finpilot-context';
 import { useLanguage } from '@/context/language-context';
 import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard';
+import { categoryLabelKey } from '@/i18n';
 import type { Category, Expense, ExpenseCadence, ExpenseInput, ExpenseKind, PaymentMethod } from '@/types/finpilot';
 import { CADENCES, CATEGORIES, EXPENSE_KINDS, PAYMENT_METHODS, calculateFinanceSummary } from '@/utils/finance';
 import { formatCurrency } from '@/utils/formatters';
@@ -290,6 +291,7 @@ export default function ExpensesScreen() {
                 values={CATEGORIES}
                 selected={form.category}
                 onSelect={(category) => setForm((current) => ({ ...current, category }))}
+                getLabel={(category) => t(categoryLabelKey(category))}
               />
             </Stack>
             {form.kind === 'recurring' ? (
@@ -425,7 +427,7 @@ export default function ExpensesScreen() {
           values={CATEGORY_FILTERS}
           selected={selectedCategory}
           onSelect={(category) => setSelectedCategory(category)}
-          getLabel={(category) => (category === 'All' ? t('expenses.all') : category)}
+          getLabel={(category) => (category === 'All' ? t('expenses.all') : t(categoryLabelKey(category)))}
         />
       </Stack>
 

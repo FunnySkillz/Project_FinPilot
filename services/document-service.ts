@@ -2,7 +2,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { Directory, File, Paths } from 'expo-file-system';
 
 import { analysisService } from '@/services/analysis-service';
-import type { Category, FinancialDocument } from '@/types/finpilot';
+import type { AppLanguage, Category, FinancialDocument } from '@/types/finpilot';
 import { newId } from '@/utils/finance';
 
 const SUPPORTED_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
@@ -61,7 +61,7 @@ function copyIntoVault(asset: DocumentPicker.DocumentPickerAsset, id: string) {
 }
 
 export const documentService = {
-  async pickDocument(): Promise<FinancialDocument | null> {
+  async pickDocument(language: AppLanguage = 'en'): Promise<FinancialDocument | null> {
     const result = await DocumentPicker.getDocumentAsync({
       type: SUPPORTED_TYPES,
       copyToCacheDirectory: true,
@@ -92,12 +92,12 @@ export const documentService = {
       updatedAt: now,
     };
 
-    const extractedText = analysisService.buildPlaceholderText(document);
+    const extractedText = analysisService.buildPlaceholderText(document, language);
     const documentWithText = { ...document, extractedText };
 
     return {
       ...documentWithText,
-      analysis: analysisService.analyzeDocument(documentWithText),
+      analysis: analysisService.analyzeDocument(documentWithText, language),
     };
   },
 };

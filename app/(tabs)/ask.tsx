@@ -9,16 +9,14 @@ import { Button, Field } from '@/components/finpilot/controls';
 import { Body, H1, Muted } from '@/components/finpilot/text';
 import { Box, HStack } from '@/components/ui/gluestack';
 import { useFinPilot } from '@/context/finpilot-context';
+import { useLanguage } from '@/context/language-context';
 import type { AiQuestion } from '@/types/finpilot';
 
-const sampleQuestions = [
-  'Do I have Rechtsschutz for a EUR 400 speeding fine?',
-  'Do I still have warranty on my washing machine?',
-  'Which insurance should I contact for this case?',
-];
+const sampleQuestionKeys = ['ask.sample.coverage', 'ask.sample.warranty', 'ask.sample.insurance'] as const;
 
 export default function AskScreen() {
   const { state, answerQuestion } = useFinPilot();
+  const { t } = useLanguage();
   const [question, setQuestion] = useState('');
   const [currentAnswer, setCurrentAnswer] = useState<AiQuestion | undefined>(state.questions[0]);
   const [isAsking, setIsAsking] = useState(false);
@@ -26,7 +24,7 @@ export default function AskScreen() {
   const ask = async (value = question) => {
     const cleanQuestion = value.trim();
     if (!cleanQuestion) {
-      Alert.alert('Ask something', 'Type a question about your uploaded documents.');
+      Alert.alert(t('ask.validationTitle'), t('ask.validationBody'));
       return;
     }
 
@@ -43,58 +41,63 @@ export default function AskScreen() {
   return (
     <AppScreen>
       <Stack gap={4}>
-        <Muted>Grounded assistant</Muted>
-        <H1>Ask FinPilot</H1>
-        <Body>Answers stay tied to uploaded documents and call out uncertainty before you act.</Body>
+        <Muted>{t('ask.eyebrow')}</Muted>
+        <H1>{t('ask.title')}</H1>
+        <Body>{t('ask.body')}</Body>
       </Stack>
 
       <Card>
         <Stack>
           <Field
-            label="Question"
+            label={t('ask.question')}
             value={question}
             onChangeText={setQuestion}
             multiline
-            placeholder="Do I have Rechtsschutz for a EUR 400 speeding fine?"
+            placeholder={t('ask.placeholder')}
           />
           <Button onPress={() => ask()} icon={MessageCircleQuestion} disabled={isAsking}>
-            {isAsking ? 'Checking documents' : 'Ask documents'}
+            {isAsking ? t('ask.checking') : t('ask.askDocuments')}
           </Button>
         </Stack>
       </Card>
 
       <Stack gap={8}>
-        <Muted>Try one</Muted>
-        {sampleQuestions.map((sample) => (
+        <Muted>{t('ask.tryOne')}</Muted>
+        {sampleQuestionKeys.map((sampleKey) => {
+          const sample = t(sampleKey);
+          return (
           <Button key={sample} variant="secondary" icon={Zap} onPress={() => ask(sample)}>
             {sample}
           </Button>
-        ))}
+          );
+        })}
       </Stack>
 
       {currentAnswer ? (
         <Card className="border-fin-primary">
           <HStack className="justify-between">
-            <Body className="font-extrabold">Answer</Body>
+            <Body className="font-extrabold">{t('ask.answer')}</Body>
             <ConfidenceBadge confidence={currentAnswer.confidence} />
           </HStack>
           <Body>{currentAnswer.answer}</Body>
           <Box className="gap-1.5 rounded-fin bg-fin-surfaceAlt p-2.5">
-            <Muted>Relevant excerpt</Muted>
+            <Muted>{t('common.relevantExcerpt')}</Muted>
             <Body>{currentAnswer.excerpt}</Body>
           </Box>
           <Muted>
-            Based on document: {currentAnswer.documentTitle ?? 'No matching document'}.
+            {t('ask.basedOnDocument', {
+              title: currentAnswer.documentTitle ?? t('ask.noMatchingDocument'),
+            })}
           </Muted>
           <Body className="font-extrabold text-fin-primaryDark">{currentAnswer.recommendation}</Body>
         </Card>
       ) : null}
 
-      <SectionHeader title="Question history" />
+      <SectionHeader title={t('ask.questionHistory')} />
       <Stack>
         {state.questions.length === 0 ? (
           <Card>
-            <Muted>No questions yet.</Muted>
+            <Muted>{t('ask.empty')}</Muted>
           </Card>
         ) : (
           state.questions.slice(0, 6).map((item) => (

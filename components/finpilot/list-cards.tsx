@@ -7,6 +7,7 @@ import { Box, HStack, Pressable, VStack } from '@/components/ui/gluestack';
 import { getFinTheme } from '@/constants/finpilot';
 import { useLanguage } from '@/context/language-context';
 import { useThemeMode } from '@/context/theme-mode-context';
+import { purchaseTypeLabelKey } from '@/i18n';
 import type { Expense, ExpenseCadence, FinancialDocument, PaymentMethod, PurchaseDecision } from '@/types/finpilot';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 
@@ -70,6 +71,7 @@ export function ExpenseCard({ expense, onPress }: { expense: Expense; onPress?: 
 }
 
 export function DocumentCard({ document, onPress }: { document: FinancialDocument; onPress?: () => void }) {
+  const { t } = useLanguage();
   const { resolvedMode } = useThemeMode();
   const theme = getFinTheme(resolvedMode);
 
@@ -81,7 +83,7 @@ export function DocumentCard({ document, onPress }: { document: FinancialDocumen
             <Box className="flex-1">
               <H2>{document.title}</H2>
               <Muted>
-                {document.provider ?? 'No provider'} | {document.fileName ?? 'Manual record'}
+                {document.provider ?? t('documents.noProvider')} | {document.fileName ?? t('documents.manualRecord')}
               </Muted>
             </Box>
             <FileText size={24} color={theme.primary} />
@@ -98,7 +100,7 @@ export function DocumentCard({ document, onPress }: { document: FinancialDocumen
 }
 
 export function PurchaseDecisionCard({ decision }: { decision: PurchaseDecision }) {
-  const { locale } = useLanguage();
+  const { locale, t } = useLanguage();
 
   return (
     <Card>
@@ -107,7 +109,7 @@ export function PurchaseDecisionCard({ decision }: { decision: PurchaseDecision 
           <Box className="flex-1">
             <H2>{decision.purchaseName}</H2>
             <Muted>
-              {formatCurrency(decision.price, 'EUR', locale)} | {decision.purchaseType}
+              {formatCurrency(decision.price, 'EUR', locale)} | {t(purchaseTypeLabelKey(decision.purchaseType))}
             </Muted>
           </Box>
           <StatusBadge status={decision.status} />

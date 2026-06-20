@@ -10,7 +10,7 @@ export function formatCurrency(value: number, currency = 'EUR', locale: AppLocal
 
 export function formatDate(value?: string, locale: AppLocale = 'en-AT') {
   if (!value) {
-    return 'Not set';
+    return locale.startsWith('de') ? 'Nicht gesetzt' : 'Not set';
   }
 
   const date = new Date(value);
@@ -27,7 +27,7 @@ export function formatDate(value?: string, locale: AppLocale = 'en-AT') {
 
 export function formatShortDate(value?: string, locale: AppLocale = 'en-AT') {
   if (!value) {
-    return 'No date';
+    return locale.startsWith('de') ? 'Kein Datum' : 'No date';
   }
 
   const date = new Date(value);

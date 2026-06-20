@@ -1,4 +1,5 @@
-import type { AiQuestion, FinancialDocument } from '@/types/finpilot';
+import { translate } from '@/i18n';
+import type { AiQuestion, AppLanguage, FinancialDocument } from '@/types/finpilot';
 import { newId } from '@/utils/finance';
 
 const stopWords = new Set([
@@ -49,14 +50,17 @@ function chooseDocument(question: string, documents: FinancialDocument[]) {
     .sort((a, b) => b.score - a.score)[0];
 }
 
-function buildAnswer(question: string, document?: FinancialDocument, score = 0) {
+function getSummary(language: AppLanguage, document: FinancialDocument, fallbackKey: Parameters<typeof translate>[1]) {
+  return language === 'en' ? document.analysis?.summary ?? translate(language, fallbackKey) : translate(language, fallbackKey);
+}
+
+function buildAnswer(question: string, language: AppLanguage, document?: FinancialDocument, score = 0) {
   if (!document || score === 0) {
     return {
-      answer:
-        'Based on your uploaded documents, I could not confirm this yet. Add or tag the relevant contract, invoice, or policy so FinPilot can ground the answer.',
+      answer: translate(language, 'ask.noMatch.answer'),
       confidence: 'low' as const,
-      excerpt: 'No matching uploaded document was found for this question.',
-      recommendation: 'Upload the relevant document or open the vault and improve the title, provider, tags, and notes.',
+      excerpt: translate(language, 'ask.noMatch.excerpt'),
+      recommendation: translate(language, 'ask.noMatch.recommendation'),
     };
   }
 
@@ -65,70 +69,80 @@ function buildAnswer(question: string, document?: FinancialDocument, score = 0) 
     questionLower.includes('cover') ||
     questionLower.includes('covered') ||
     questionLower.includes('insurance') ||
+    questionLower.includes('versicherung') ||
+    questionLower.includes('gedeckt') ||
+    questionLower.includes('deckt') ||
     questionLower.includes('rechtsschutz');
-  const isWarrantyQuestion = questionLower.includes('warranty') || questionLower.includes('guarantee');
+  const isWarrantyQuestion =
+    questionLower.includes('warranty') || questionLower.includes('guarantee') || questionLower.includes('garantie');
   const isAffordQuestion =
-    questionLower.includes('afford') || questionLower.includes('buy') || questionLower.includes('pay');
+    questionLower.includes('afford') ||
+    questionLower.includes('buy') ||
+    questionLower.includes('pay') ||
+    questionLower.includes('leisten') ||
+    questionLower.includes('kaufen') ||
+    questionLower.includes('zahlen') ||
+    questionLower.includes('bezahlen');
 
   if (isCoverageQuestion) {
     return {
-      answer: `Based on your uploaded documents, this seems related to ${document.title}. ${
-        document.analysis?.summary ??
-        'The document has placeholder extraction only, so the coverage signal should be verified.'
-      }`,
+      answer: translate(language, 'ask.coverage.answer', {
+        title: document.title,
+        summary: getSummary(language, document, 'ask.coverage.fallback'),
+      }),
       confidence: document.analysis?.confidence ?? ('medium' as const),
       excerpt:
         document.analysis?.excerpt ??
         document.extractedText ??
-        'Relevant document found, but no OCR excerpt is available yet.',
-      recommendation:
-        'Do not treat this as final legal or insurance advice. Contact the provider and reference the exact policy or notice before acting.',
+        translate(language, 'ask.generic.excerptFallback'),
+      recommendation: translate(language, 'ask.coverage.recommendation'),
     };
   }
 
   if (isWarrantyQuestion) {
     return {
-      answer: `Based on your uploaded documents, ${document.title} is the strongest match for warranty context. ${
-        document.analysis?.warrantyUntil
-          ? `The placeholder analysis points to warranty relevance until ${document.analysis.warrantyUntil}.`
-          : 'The warranty period is not confirmed yet.'
-      }`,
+      answer: document.analysis?.warrantyUntil
+        ? translate(language, 'ask.warranty.answer.confirmed', {
+            title: document.title,
+            date: document.analysis.warrantyUntil,
+          })
+        : translate(language, 'ask.warranty.answer.unconfirmed', { title: document.title }),
       confidence: document.analysis?.warrantyUntil ? ('high' as const) : ('medium' as const),
       excerpt:
         document.analysis?.excerpt ??
         document.extractedText ??
-        'Relevant document found, but no OCR excerpt is available yet.',
-      recommendation: 'Open the document detail and verify the purchase date and warranty terms before filing a claim.',
+        translate(language, 'ask.generic.excerptFallback'),
+      recommendation: translate(language, 'ask.warranty.recommendation'),
     };
   }
 
   if (isAffordQuestion) {
     return {
-      answer:
-        'Based on your uploaded documents and manually entered costs, this looks like a budget question. Use Purchase Check for the stronger answer because it calculates savings buffer and monthly impact.',
+      answer: translate(language, 'ask.afford.answer'),
       confidence: 'medium' as const,
-      excerpt: document.analysis?.excerpt ?? 'A related financial document was found.',
-      recommendation: 'Run the purchase through Purchase Check with current savings and monthly income.',
+      excerpt: document.analysis?.excerpt ?? translate(language, 'ask.afford.excerpt'),
+      recommendation: translate(language, 'ask.afford.recommendation'),
     };
   }
 
   return {
-    answer: `Based on your uploaded documents, ${document.title} is the best match. ${
-      document.analysis?.summary ?? 'The document is searchable, but OCR is still a local placeholder.'
-    }`,
+    answer: translate(language, 'ask.generic.answer', {
+      title: document.title,
+      summary: getSummary(language, document, 'ask.generic.fallback'),
+    }),
     confidence: score >= 3 ? ('high' as const) : ('medium' as const),
     excerpt:
       document.analysis?.excerpt ??
       document.extractedText ??
-      'Relevant document found, but no OCR excerpt is available yet.',
-    recommendation: 'Review the matched document detail and verify extracted fields before making a decision.',
+      translate(language, 'ask.generic.excerptFallback'),
+    recommendation: translate(language, 'ask.generic.recommendation'),
   };
 }
 
 export const assistantService = {
-  answerQuestion(question: string, documents: FinancialDocument[]): AiQuestion {
+  answerQuestion(question: string, documents: FinancialDocument[], language: AppLanguage): AiQuestion {
     const match = chooseDocument(question, documents);
-    const response = buildAnswer(question, match?.document, match?.score);
+    const response = buildAnswer(question, language, match?.document, match?.score);
 
     return {
       id: newId('q'),

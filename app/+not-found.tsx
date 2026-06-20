@@ -5,19 +5,21 @@ import { AppScreen, Stack } from '@/components/finpilot/app-screen';
 import { Card } from '@/components/finpilot/card';
 import { Button } from '@/components/finpilot/controls';
 import { Body, H1, Muted } from '@/components/finpilot/text';
+import { useLanguage } from '@/context/language-context';
 
 export default function NotFoundScreen() {
   const router = useRouter();
+  const { t } = useLanguage();
 
   return (
     <AppScreen>
       <Card>
         <Stack>
-          <Muted>FinPilot</Muted>
-          <H1>Route not found</H1>
-          <Body>This local screen is not available. Return to the cockpit and keep moving.</Body>
+          <Muted>{t('app.name')}</Muted>
+          <H1>{t('notFound.title')}</H1>
+          <Body>{t('notFound.body')}</Body>
           <Button icon={ArrowLeft} onPress={() => router.replace('/(tabs)')}>
-            Back to dashboard
+            {t('notFound.back')}
           </Button>
         </Stack>
       </Card>

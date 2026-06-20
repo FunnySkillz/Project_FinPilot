@@ -1,4 +1,5 @@
-import type { Expense, PurchaseDecision, PurchaseInput, PurchaseStatus } from '@/types/finpilot';
+import { languageToLocaleMap, translate } from '@/i18n';
+import type { AppLanguage, Expense, PurchaseDecision, PurchaseInput, PurchaseStatus } from '@/types/finpilot';
 import { calculateFinanceSummary, newId } from '@/utils/finance';
 import { formatCurrency } from '@/utils/formatters';
 
@@ -26,26 +27,40 @@ function statusFromRisk({
   return 'safe';
 }
 
-function buildRecommendation(status: PurchaseStatus, input: PurchaseInput, bufferAfterPurchase: number) {
+function buildRecommendation(
+  status: PurchaseStatus,
+  input: PurchaseInput,
+  bufferAfterPurchase: number,
+  language: AppLanguage,
+) {
   if (status === 'safe') {
-    return `Safe enough for the current snapshot. Keep at least ${formatCurrency(
-      bufferAfterPurchase,
-    )} untouched after the purchase.`;
+    return translate(language, 'purchase.recommendation.safe', {
+      amount: formatCurrency(bufferAfterPurchase, 'EUR', languageToLocaleMap[language]),
+    });
   }
 
   if (status === 'risky') {
     const months = Math.max(1, Math.ceil((input.price * 0.5) / Math.max(250, input.monthlyIncome * 0.12)));
-    return `Risky. Delay by about ${months} month${months === 1 ? '' : 's'} or reduce the price before buying.`;
+    return translate(
+      language,
+      months === 1 ? 'purchase.recommendation.risky.one' : 'purchase.recommendation.risky.many',
+      { months },
+    );
   }
 
   const suggestedMonthlySaving = Math.max(250, Math.ceil(input.price / 4 / 50) * 50);
-  return `Critical. Delay the purchase and set aside about ${formatCurrency(
-    suggestedMonthlySaving,
-  )} per month before reconsidering.`;
+  return translate(language, 'purchase.recommendation.critical', {
+    amount: formatCurrency(suggestedMonthlySaving, 'EUR', languageToLocaleMap[language]),
+  });
 }
 
 export const purchaseService = {
-  evaluate(input: PurchaseInput, expenses: Expense[], emergencyBufferGoal: number): PurchaseDecision {
+  evaluate(
+    input: PurchaseInput,
+    expenses: Expense[],
+    emergencyBufferGoal: number,
+    language: AppLanguage,
+  ): PurchaseDecision {
     const summary = calculateFinanceSummary(expenses, input.monthlyIncome);
     const monthlyImpact =
       input.purchaseType === 'financing' ? input.monthlyFinancingAmount ?? input.price / 12 : input.price;
@@ -68,13 +83,8 @@ export const purchaseService = {
       monthlyImpact,
       bufferAfterPurchase,
       status,
-      summary:
-        status === 'safe'
-          ? 'Safe: this fits the current budget snapshot.'
-          : status === 'risky'
-            ? 'Risky: this weakens your buffer or monthly flexibility.'
-            : 'Critical: this would push your buffer or monthly cash flow below a safe level.',
-      recommendation: buildRecommendation(status, input, bufferAfterPurchase),
+      summary: translate(language, `purchase.summary.${status}` as const),
+      recommendation: buildRecommendation(status, input, bufferAfterPurchase, language),
       createdAt: new Date().toISOString(),
     };
   },

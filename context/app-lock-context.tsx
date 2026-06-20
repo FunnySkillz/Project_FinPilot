@@ -105,12 +105,12 @@ export function AppLockProvider({ children }: PropsWithChildren) {
   const enableAppLock = useCallback(async () => {
     const hasPin = await pinAuthService.hasPinRecordAsync();
     if (!hasPin) {
-      throw new Error('Set a PIN before enabling app lock.');
+      throw new Error(t('security.pinRequired'));
     }
 
     await updateSettings({ appLockEnabled: true });
     setIsUnlocked(false);
-  }, [updateSettings]);
+  }, [t, updateSettings]);
 
   const disableAppLock = useCallback(async () => {
     await pinAuthService.clearPinAsync();
