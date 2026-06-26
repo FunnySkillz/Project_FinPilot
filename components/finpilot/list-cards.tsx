@@ -8,7 +8,14 @@ import { getFinTheme } from '@/constants/finpilot';
 import { useLanguage } from '@/context/language-context';
 import { useThemeMode } from '@/context/theme-mode-context';
 import { purchaseTypeLabelKey } from '@/i18n';
-import type { Expense, ExpenseCadence, FinancialDocument, PaymentMethod, PurchaseDecision } from '@/types/finpilot';
+import type {
+  DocumentAnalysisSource,
+  Expense,
+  ExpenseCadence,
+  FinancialDocument,
+  PaymentMethod,
+  PurchaseDecision,
+} from '@/types/finpilot';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 
 function paymentMethodLabelKey(paymentMethod: PaymentMethod) {
@@ -17,6 +24,10 @@ function paymentMethodLabelKey(paymentMethod: PaymentMethod) {
 
 function cadenceLabelKey(cadence: ExpenseCadence) {
   return `expenses.cadence.${cadence}` as const;
+}
+
+function analysisSourceLabelKey(source: DocumentAnalysisSource) {
+  return `analysis.source.${source}` as const;
 }
 
 function notePreview(notes: string) {
@@ -92,6 +103,7 @@ export function DocumentCard({ document, onPress }: { document: FinancialDocumen
             <CategoryBadge category={document.category} />
             {document.analysis ? <ConfidenceBadge confidence={document.analysis.confidence} /> : null}
           </HStack>
+          {document.analysis ? <Muted>{t(analysisSourceLabelKey(document.analysis.source))}</Muted> : null}
           {document.analysis?.summary ? <Muted>{document.analysis.summary}</Muted> : null}
         </VStack>
       </Card>

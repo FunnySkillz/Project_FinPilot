@@ -13,7 +13,7 @@ import { useFinPilot } from '@/context/finpilot-context';
 import { useLanguage } from '@/context/language-context';
 import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard';
 import { categoryLabelKey } from '@/i18n';
-import type { Category, DocumentInput, FinancialDocument } from '@/types/finpilot';
+import type { Category, DocumentAnalysisSource, DocumentInput, FinancialDocument } from '@/types/finpilot';
 import { CATEGORIES } from '@/utils/finance';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 
@@ -37,6 +37,10 @@ function formFromDocument(document: FinancialDocument): DocumentForm {
     notes: document.notes ?? '',
     tags: document.tags.join(', '),
   };
+}
+
+function analysisSourceLabelKey(source: DocumentAnalysisSource) {
+  return `analysis.source.${source}` as const;
 }
 
 export default function DocumentDetailScreen() {
@@ -155,6 +159,7 @@ export default function DocumentDetailScreen() {
         <Card className="border-fin-primary">
           <Stack>
             <SectionHeader title={t('documentDetail.analysis')} />
+            <Muted>{t('documentDetail.analysisSource', { source: t(analysisSourceLabelKey(document.analysis.source)) })}</Muted>
             <Body>{document.analysis.summary}</Body>
             <Box className="gap-1.5 rounded-fin bg-fin-surfaceAlt p-2.5">
               <Muted>{t('common.relevantExcerpt')}</Muted>
@@ -168,6 +173,11 @@ export default function DocumentDetailScreen() {
             <Muted>
               {t('documentDetail.warnings', {
                 value: document.analysis.exclusions.join(', ') || t('documentDetail.noWarnings'),
+              })}
+            </Muted>
+            <Muted>
+              {t('documentDetail.aiWarnings', {
+                value: document.analysis.warnings.join(', ') || t('documentDetail.noWarnings'),
               })}
             </Muted>
           </Stack>

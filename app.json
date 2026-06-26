@@ -56,6 +56,13 @@
           "faceIDPermission": "Allow FinPilot to use Face ID to unlock your financial documents."
         }
       ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Allow FinPilot to scan financial documents.",
+          "photosPermission": "Allow FinPilot to import document photos."
+        }
+      ],
       "expo-secure-store",
       "expo-font"
     ],
@@ -65,6 +72,7 @@
     },
     "extra": {
       "router": {},
+      "aiBaseUrl": "http://localhost:8787",
       "eas": {
         "projectId": "07126557-2031-4b4e-86ba-ded22804fa82"
       }

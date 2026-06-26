@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import { ChevronRight, Database, Languages, Palette, Scale, Shield, type LucideIcon } from 'lucide-react-native';
+import { Bot, ChevronRight, Database, Languages, Palette, Scale, Shield, type LucideIcon } from 'lucide-react-native';
 import { useCallback, useRef } from 'react';
 
 import { AppScreen, Stack } from '@/components/finpilot/app-screen';
@@ -14,7 +14,13 @@ import { useLanguage } from '@/context/language-context';
 import { useThemeMode } from '@/context/theme-mode-context';
 import { formatCurrency } from '@/utils/formatters';
 
-type SettingsRoute = '/(tabs)/settings/appearance' | '/(tabs)/settings/language' | '/(tabs)/settings/security' | '/(tabs)/settings/legal' | '/(tabs)/settings/data';
+type SettingsRoute =
+  | '/(tabs)/settings/appearance'
+  | '/(tabs)/settings/language'
+  | '/(tabs)/settings/security'
+  | '/(tabs)/settings/ai'
+  | '/(tabs)/settings/legal'
+  | '/(tabs)/settings/data';
 
 function SettingsEntry({
   title,
@@ -71,7 +77,7 @@ export default function SettingsIndexScreen() {
       return;
     }
     isNavigatingRef.current = true;
-    router.push(route);
+    router.push(route as Parameters<typeof router.push>[0]);
   };
 
   const updateNumberSetting = async (key: 'monthlyIncome' | 'emergencyBufferGoal', value: string) => {
@@ -138,6 +144,15 @@ export default function SettingsIndexScreen() {
         title={t('settings.security.title')}
         body={t('settings.security.body')}
         route="/(tabs)/settings/security"
+        onOpen={openSettingsRoute}
+        iconColor={theme.primary}
+        mutedColor={theme.muted}
+      />
+      <SettingsEntry
+        icon={Bot}
+        title={t('settings.ai.title')}
+        body={t('settings.ai.body')}
+        route="/(tabs)/settings/ai"
         onOpen={openSettingsRoute}
         iconColor={theme.primary}
         mutedColor={theme.muted}

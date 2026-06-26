@@ -5,8 +5,12 @@ import { languagePreferenceService } from '@/services/language-preference';
 import { themePreferenceService } from '@/services/theme-preference';
 import type {
   AppLanguage,
+  AiConnectionCheck,
+  AiOcrMode,
+  AiSettings,
   AppSettings,
   Category,
+  DocumentAnalysis,
   Expense,
   ExpenseCadence,
   ExpenseInput,
@@ -18,7 +22,7 @@ import type {
 import { CATEGORIES, newId } from '@/utils/finance';
 
 const STORAGE_KEY = 'finpilot.state.v1';
-export const CURRENT_STATE_VERSION = 3;
+export const CURRENT_STATE_VERSION = 4;
 
 const PAYMENT_METHODS: PaymentMethod[] = [
   'cash',
@@ -39,6 +43,12 @@ type StoredExpense = Partial<Omit<Expense, 'cadence' | 'kind' | 'paymentMethod' 
   tags?: unknown;
 };
 
+const DEFAULT_AI_SETTINGS: AiSettings = {
+  cloudEnabled: false,
+  cloudDocumentConsent: false,
+  ocrMode: 'hybrid',
+};
+
 function cloneSeedState(): FinPilotState {
   const seeded = JSON.parse(JSON.stringify(seedState)) as FinPilotState;
   return {
@@ -54,6 +64,22 @@ function isLanguage(value: unknown): value is AppLanguage {
 
 function isThemeMode(value: unknown): value is ThemeMode {
   return value === 'system' || value === 'light' || value === 'dark';
+}
+
+function isAiOcrMode(value: unknown): value is AiOcrMode {
+  return value === 'hybrid' || value === 'native' || value === 'cloud' || value === 'off';
+}
+
+function isAiConnectionCheck(value: unknown): value is AiConnectionCheck {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const check = value as Partial<AiConnectionCheck>;
+  return (
+    (check.status === 'unknown' || check.status === 'connected' || check.status === 'error') &&
+    typeof check.checkedAt === 'string'
+  );
 }
 
 function isCategory(value: unknown): value is Category {
@@ -135,6 +161,74 @@ function createInitialExpense(input: ExpenseInput, index: number): Expense {
   );
 }
 
+function normalizeAiSettings(settings?: Partial<AiSettings>): AiSettings {
+  return {
+    cloudEnabled: Boolean(settings?.cloudEnabled),
+    cloudDocumentConsent: Boolean(settings?.cloudDocumentConsent),
+    ocrMode: isAiOcrMode(settings?.ocrMode) ? settings.ocrMode : DEFAULT_AI_SETTINGS.ocrMode,
+    lastConnectionCheck: isAiConnectionCheck(settings?.lastConnectionCheck)
+      ? settings.lastConnectionCheck
+      : undefined,
+  };
+}
+
+function normalizeAnalysis(analysis?: Partial<DocumentAnalysis>): DocumentAnalysis | undefined {
+  if (!analysis?.summary || !analysis?.excerpt) {
+    return undefined;
+  }
+
+  return {
+    documentType: typeof analysis.documentType === 'string' ? analysis.documentType : 'Document',
+    provider: typeof analysis.provider === 'string' ? analysis.provider : undefined,
+    amount: typeof analysis.amount === 'number' ? analysis.amount : undefined,
+    documentDate: typeof analysis.documentDate === 'string' ? analysis.documentDate : undefined,
+    contractEndDate: typeof analysis.contractEndDate === 'string' ? analysis.contractEndDate : undefined,
+    warrantyUntil: typeof analysis.warrantyUntil === 'string' ? analysis.warrantyUntil : undefined,
+    summary: analysis.summary,
+    coveredRisks: Array.isArray(analysis.coveredRisks) ? analysis.coveredRisks.filter(Boolean) : [],
+    exclusions: Array.isArray(analysis.exclusions) ? analysis.exclusions.filter(Boolean) : [],
+    warnings: Array.isArray(analysis.warnings) ? analysis.warnings.filter(Boolean) : [],
+    excerpt: analysis.excerpt,
+    confidence:
+      analysis.confidence === 'high' || analysis.confidence === 'medium' || analysis.confidence === 'low'
+        ? analysis.confidence
+        : 'low',
+    source:
+      analysis.source === 'cloud-ai' || analysis.source === 'native-ocr' || analysis.source === 'placeholder'
+        ? analysis.source
+        : 'placeholder',
+    requestId: typeof analysis.requestId === 'string' ? analysis.requestId : undefined,
+    model: typeof analysis.model === 'string' ? analysis.model : undefined,
+    needsReview: typeof analysis.needsReview === 'boolean' ? analysis.needsReview : true,
+    generatedAt: typeof analysis.generatedAt === 'string' ? analysis.generatedAt : new Date().toISOString(),
+  };
+}
+
+function normalizeDocument(document: Partial<FinPilotState['documents'][number]>, index: number) {
+  const now = new Date().toISOString();
+  const tags = Array.isArray(document.tags)
+    ? document.tags.filter((tag): tag is string => typeof tag === 'string' && tag.trim().length > 0)
+    : [];
+
+  return {
+    id: typeof document.id === 'string' ? document.id : `doc-migrated-${index}`,
+    title: typeof document.title === 'string' && document.title.trim() ? document.title : 'Untitled document',
+    category: isCategory(document.category) ? document.category : 'Other',
+    provider: typeof document.provider === 'string' && document.provider.trim() ? document.provider : undefined,
+    fileUri: typeof document.fileUri === 'string' ? document.fileUri : undefined,
+    fileName: typeof document.fileName === 'string' ? document.fileName : undefined,
+    mimeType: typeof document.mimeType === 'string' ? document.mimeType : undefined,
+    amount: typeof document.amount === 'number' ? document.amount : undefined,
+    documentDate: typeof document.documentDate === 'string' ? document.documentDate : undefined,
+    notes: typeof document.notes === 'string' && document.notes.trim() ? document.notes : undefined,
+    tags,
+    extractedText: typeof document.extractedText === 'string' ? document.extractedText : undefined,
+    analysis: normalizeAnalysis(document.analysis),
+    createdAt: typeof document.createdAt === 'string' ? document.createdAt : now,
+    updatedAt: typeof document.updatedAt === 'string' ? document.updatedAt : now,
+  };
+}
+
 export function createEmptyState(settings?: Partial<AppSettings>): FinPilotState {
   return {
     version: CURRENT_STATE_VERSION,
@@ -157,6 +251,7 @@ function normalizeSettings(settings?: Partial<AppSettings>, sampleDefault = fals
     themeMode: themePreferenceService.load(isThemeMode(settings?.themeMode) ? settings.themeMode : undefined),
     appLockEnabled: settings?.appLockEnabled ?? false,
     sampleDataEnabled: settings?.sampleDataEnabled ?? sampleDefault,
+    ai: normalizeAiSettings(settings?.ai),
   };
 }
 
@@ -168,7 +263,7 @@ function normalizeState(state: Partial<FinPilotState> | null): FinPilotState {
   return {
     version: CURRENT_STATE_VERSION,
     expenses: (state.expenses ?? []).map((expense, index) => normalizeExpense(expense, index)),
-    documents: state.documents ?? [],
+    documents: (state.documents ?? []).map((document, index) => normalizeDocument(document, index)),
     questions: state.questions ?? [],
     purchaseDecisions: state.purchaseDecisions ?? [],
     settings: normalizeSettings(state.settings, (state.version ?? 1) < CURRENT_STATE_VERSION),

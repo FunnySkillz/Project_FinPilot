@@ -1,8 +1,8 @@
 import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
 import { Directory, File, Paths } from 'expo-file-system';
 
-import { analysisService } from '@/services/analysis-service';
-import type { AppLanguage, Category, FinancialDocument } from '@/types/finpilot';
+import type { Category, FinancialDocument } from '@/types/finpilot';
 import { newId } from '@/utils/finance';
 
 const SUPPORTED_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
@@ -47,7 +47,7 @@ function inferProvider(name: string) {
   return providers.find((provider) => lowerName.includes(provider.toLowerCase()));
 }
 
-function copyIntoVault(asset: DocumentPicker.DocumentPickerAsset, id: string) {
+function copyIntoVault(asset: { uri: string; name: string }, id: string) {
   try {
     const vault = new Directory(Paths.document, 'finpilot-documents');
     vault.create({ intermediates: true, idempotent: true });
@@ -60,8 +60,28 @@ function copyIntoVault(asset: DocumentPicker.DocumentPickerAsset, id: string) {
   }
 }
 
+function documentFromImageAsset(asset: { uri: string; fileName?: string | null; mimeType?: string | null }, tag: string) {
+  const id = newId('doc');
+  const fileName = asset.fileName ?? `${tag}-${Date.now()}.jpg`;
+  const mimeType = asset.mimeType ?? 'image/jpeg';
+  const category = inferCategory(fileName);
+  const now = new Date().toISOString();
+
+  return {
+    id,
+    title: titleFromFileName(fileName),
+    category,
+    fileUri: copyIntoVault({ uri: asset.uri, name: fileName }, id),
+    fileName,
+    mimeType,
+    tags: [category.toLowerCase(), tag],
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
 export const documentService = {
-  async pickDocument(language: AppLanguage = 'en'): Promise<FinancialDocument | null> {
+  async pickDocument(): Promise<FinancialDocument | null> {
     const result = await DocumentPicker.getDocumentAsync({
       type: SUPPORTED_TYPES,
       copyToCacheDirectory: true,
@@ -92,12 +112,44 @@ export const documentService = {
       updatedAt: now,
     };
 
-    const extractedText = analysisService.buildPlaceholderText(document, language);
-    const documentWithText = { ...document, extractedText };
+    return document;
+  },
 
-    return {
-      ...documentWithText,
-      analysis: analysisService.analyzeDocument(documentWithText, language),
-    };
+  async pickImage(): Promise<FinancialDocument | null> {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      throw new Error('Photo permission is required to import a document.');
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 1,
+      allowsEditing: false,
+    });
+
+    if (result.canceled || !result.assets?.[0]) {
+      return null;
+    }
+
+    return documentFromImageAsset(result.assets[0], 'photo');
+  },
+
+  async scanDocument(): Promise<FinancialDocument | null> {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      throw new Error('Camera permission is required to scan a document.');
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'],
+      quality: 0.9,
+      allowsEditing: false,
+    });
+
+    if (result.canceled || !result.assets?.[0]) {
+      return null;
+    }
+
+    return documentFromImageAsset(result.assets[0], 'scan');
   },
 };

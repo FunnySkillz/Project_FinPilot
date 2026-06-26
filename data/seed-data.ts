@@ -3,7 +3,7 @@ import type { FinPilotState } from '@/types/finpilot';
 const now = '2026-05-06T21:15:00.000Z';
 
 export const seedState: FinPilotState = {
-  version: 3,
+  version: 4,
   settings: {
     monthlyIncome: 4200,
     emergencyBufferGoal: 8000,
@@ -14,6 +14,11 @@ export const seedState: FinPilotState = {
     themeMode: 'system',
     appLockEnabled: false,
     sampleDataEnabled: true,
+    ai: {
+      cloudEnabled: false,
+      cloudDocumentConsent: false,
+      ocrMode: 'hybrid',
+    },
   },
   expenses: [
     {
@@ -148,9 +153,12 @@ export const seedState: FinPilotState = {
           'Legal protection policy with private and traffic coverage signals. Fine and administrative penalty coverage needs insurer confirmation.',
         coveredRisks: ['Private legal protection', 'Traffic legal protection', 'Initial legal consultation'],
         exclusions: ['Administrative penalties may be excluded', 'Intentional violations are usually excluded'],
+        warnings: ['Seeded sample analysis; verify against the real policy wording.'],
         excerpt:
           'Traffic legal protection is included; administrative penalties may be excluded or conditional.',
         confidence: 'medium',
+        source: 'placeholder',
+        needsReview: true,
         generatedAt: now,
       },
       createdAt: now,
@@ -177,8 +185,11 @@ export const seedState: FinPilotState = {
         summary: 'Car insurance with monthly premium and active contract period.',
         coveredRisks: ['Vehicle liability', 'Partial comprehensive cover'],
         exclusions: ['Wear and tear', 'Racing events'],
+        warnings: ['Seeded sample analysis; verify against the real contract wording.'],
         excerpt: 'Monthly premium 120 EUR. Contract period until 2027-02-28.',
         confidence: 'high',
+        source: 'placeholder',
+        needsReview: true,
         generatedAt: now,
       },
       createdAt: now,
@@ -205,8 +216,11 @@ export const seedState: FinPilotState = {
         summary: 'Invoice with warranty-relevant purchase date and amount.',
         coveredRisks: ['Manufacturer warranty until 2026-11-14'],
         exclusions: ['Accidental damage is not warranty coverage'],
+        warnings: ['Seeded sample analysis; verify purchase date and warranty terms.'],
         excerpt: 'Standard manufacturer warranty 24 months.',
         confidence: 'high',
+        source: 'placeholder',
+        needsReview: true,
         generatedAt: now,
       },
       createdAt: now,
@@ -232,8 +246,11 @@ export const seedState: FinPilotState = {
         summary: 'Open penalty notice with a payment amount and deadline.',
         coveredRisks: [],
         exclusions: ['Coverage depends on legal protection policy terms'],
+        warnings: ['Seeded sample analysis; confirm deadline and legal options before acting.'],
         excerpt: 'Payment amount 400 EUR. Deadline 2026-05-20.',
         confidence: 'medium',
+        source: 'placeholder',
+        needsReview: true,
         generatedAt: now,
       },
       createdAt: now,

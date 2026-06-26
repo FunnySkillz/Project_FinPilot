@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Alert } from 'react-native';
-import { Edit3, Plus, Upload, X } from 'lucide-react-native';
+import { Camera, Edit3, Image as ImageIcon, Plus, Upload, X } from 'lucide-react-native';
 
 import { AppScreen, Stack } from '@/components/finpilot/app-screen';
 import { Card, SectionHeader } from '@/components/finpilot/card';
@@ -38,11 +38,13 @@ const emptyManualForm: ManualDocumentForm = {
 
 export default function DocumentsScreen() {
   const router = useRouter();
-  const { state, pickAndAddDocument, addManualDocument } = useFinPilot();
+  const { state, pickAndAddDocument, importPhotoAndAddDocument, scanAndAddDocument, addManualDocument } = useFinPilot();
   const { t } = useLanguage();
   const [selectedCategory, setSelectedCategory] = useState<Category | 'All'>('All');
   const [query, setQuery] = useState('');
   const [isPicking, setIsPicking] = useState(false);
+  const [isImportingPhoto, setIsImportingPhoto] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
   const [isSavingManual, setIsSavingManual] = useState(false);
   const [showManualForm, setShowManualForm] = useState(false);
   const [manualForm, setManualForm] = useState<ManualDocumentForm>(emptyManualForm);
@@ -88,6 +90,34 @@ export default function DocumentsScreen() {
       Alert.alert(t('documents.uploadErrorTitle'), t('documents.uploadErrorBody'));
     } finally {
       setIsPicking(false);
+    }
+  };
+
+  const scan = async () => {
+    setIsScanning(true);
+    try {
+      const document = await scanAndAddDocument();
+      if (document) {
+        router.push(`/document/${document.id}`);
+      }
+    } catch {
+      Alert.alert(t('documents.scanErrorTitle'), t('documents.scanErrorBody'));
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  const importPhoto = async () => {
+    setIsImportingPhoto(true);
+    try {
+      const document = await importPhotoAndAddDocument();
+      if (document) {
+        router.push(`/document/${document.id}`);
+      }
+    } catch {
+      Alert.alert(t('documents.photoErrorTitle'), t('documents.photoErrorBody'));
+    } finally {
+      setIsImportingPhoto(false);
     }
   };
 
@@ -155,14 +185,31 @@ export default function DocumentsScreen() {
       </Stack>
 
       <VStack className="gap-2.5">
-        <Button onPress={upload} icon={Upload} disabled={isPicking || isSavingManual}>
+        <Button
+          onPress={upload}
+          icon={Upload}
+          disabled={isPicking || isImportingPhoto || isScanning || isSavingManual}>
           {isPicking ? t('documents.openingPicker') : t('documents.uploadAction')}
+        </Button>
+        <Button
+          variant="secondary"
+          onPress={importPhoto}
+          icon={ImageIcon}
+          disabled={isPicking || isImportingPhoto || isScanning || isSavingManual}>
+          {isImportingPhoto ? t('documents.openingPhoto') : t('documents.photoAction')}
+        </Button>
+        <Button
+          variant="secondary"
+          onPress={scan}
+          icon={Camera}
+          disabled={isPicking || isImportingPhoto || isScanning || isSavingManual}>
+          {isScanning ? t('documents.openingCamera') : t('documents.scanAction')}
         </Button>
         <Button
           variant="secondary"
           icon={showManualForm ? X : Edit3}
           onPress={toggleManualForm}
-          disabled={isPicking || isSavingManual}>
+          disabled={isPicking || isImportingPhoto || isScanning || isSavingManual}>
           {showManualForm ? t('documents.closeManualForm') : t('documents.manualRecord')}
         </Button>
       </VStack>

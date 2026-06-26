@@ -8,14 +8,16 @@ import {
   useState,
 } from 'react';
 
-import { analysisService } from '@/services/analysis-service';
+import { aiGatewayService } from '@/services/ai-gateway-service';
 import { assistantService } from '@/services/assistant-service';
 import { documentService } from '@/services/document-service';
+import { ocrService } from '@/services/ocr-service';
 import { purchaseService } from '@/services/purchase-service';
 import { createEmptyState, storageService } from '@/services/storage-service';
 import type {
+  AiConnectionCheck,
   AiQuestion,
-  AppSettings,
+  AppSettingsPatch,
   DocumentInput,
   Expense,
   ExpenseInput,
@@ -38,11 +40,15 @@ type FinPilotContextValue = {
   deleteExpense: (id: string) => Promise<void>;
   addManualDocument: (input: DocumentInput) => Promise<void>;
   pickAndAddDocument: () => Promise<FinancialDocument | null>;
+  importPhotoAndAddDocument: () => Promise<FinancialDocument | null>;
+  scanAndAddDocument: () => Promise<FinancialDocument | null>;
   updateDocument: (id: string, patch: Partial<DocumentInput>) => Promise<void>;
   deleteDocument: (id: string) => Promise<void>;
   answerQuestion: (question: string) => Promise<AiQuestion>;
   evaluatePurchase: (input: PurchaseInput) => Promise<PurchaseDecision>;
-  updateSettings: (patch: Partial<AppSettings>) => Promise<void>;
+  updateSettings: (patch: AppSettingsPatch) => Promise<void>;
+  testAiConnection: () => Promise<AiConnectionCheck>;
+  reprocessDocuments: () => Promise<void>;
   completeOnboarding: (input: OnboardingInput) => Promise<void>;
   retryLoad: () => Promise<void>;
   resetWithSamples: () => Promise<void>;
@@ -63,21 +69,69 @@ function createExpense(input: ExpenseInput): Expense {
   };
 }
 
-function createManualDocument(input: DocumentInput, language: AppLanguage): FinancialDocument {
+function createManualDocument(input: DocumentInput): FinancialDocument {
   const now = new Date().toISOString();
-  const baseDocument: FinancialDocument = {
+
+  return {
     id: newId('doc'),
     ...input,
     tags: input.tags ?? [],
     createdAt: now,
     updatedAt: now,
   };
-  const extractedText = analysisService.buildPlaceholderText(baseDocument, language);
-  const documentWithText = { ...baseDocument, extractedText };
+}
+
+async function analyzeAndMergeDocument(document: FinancialDocument, language: AppLanguage, ai: FinPilotState['settings']['ai']) {
+  const result = await ocrService.analyzeDocument(document, language, ai);
+  const analysis = result.analysis;
 
   return {
-    ...documentWithText,
-    analysis: analysisService.analyzeDocument(documentWithText, language),
+    ...document,
+    provider: document.provider ?? analysis.provider,
+    amount: document.amount ?? analysis.amount,
+    documentDate: document.documentDate ?? analysis.documentDate,
+    extractedText: result.extractedText ?? document.extractedText,
+    analysis,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function selectDocumentsForQuestion(question: string, documents: FinancialDocument[]) {
+  const terms = question
+    .toLowerCase()
+    .split(/\W+/)
+    .filter((term) => term.length > 2);
+
+  return {
+    documents: documents
+      .map((document) => {
+        const haystack = [
+          document.title,
+          document.provider,
+          document.notes,
+          document.extractedText,
+          document.analysis?.summary,
+          document.analysis?.excerpt,
+          ...(document.tags ?? []),
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+        const score = terms.reduce((total, term) => total + (haystack.includes(term) ? 1 : 0), 0);
+        return { document, score };
+      })
+      .sort((left, right) => right.score - left.score || right.document.updatedAt.localeCompare(left.document.updatedAt))
+      .slice(0, 5)
+      .map(({ document }) => ({
+        id: document.id,
+        title: document.title,
+        category: document.category,
+        provider: document.provider,
+        summary: document.analysis?.summary,
+        excerpt: document.analysis?.excerpt,
+        extractedText: document.extractedText?.slice(0, 4000),
+        tags: document.tags,
+      })),
   };
 }
 
@@ -160,47 +214,78 @@ export function FinPilotProvider({ children }: PropsWithChildren) {
         }));
       },
       addManualDocument: async (input) => {
-        const document = createManualDocument(input, state.settings.language);
+        const document = await analyzeAndMergeDocument(
+          createManualDocument(input),
+          state.settings.language,
+          state.settings.ai,
+        );
         await commit((current) => ({
           ...current,
           documents: [document, ...current.documents],
         }));
       },
       pickAndAddDocument: async () => {
-        const document = await documentService.pickDocument(state.settings.language);
+        const pickedDocument = await documentService.pickDocument();
 
-        if (document) {
+        if (pickedDocument) {
+          const document = await analyzeAndMergeDocument(pickedDocument, state.settings.language, state.settings.ai);
           await commit((current) => ({
             ...current,
             documents: [document, ...current.documents],
           }));
+          return document;
         }
 
-        return document;
+        return null;
+      },
+      importPhotoAndAddDocument: async () => {
+        const pickedDocument = await documentService.pickImage();
+
+        if (pickedDocument) {
+          const document = await analyzeAndMergeDocument(pickedDocument, state.settings.language, state.settings.ai);
+          await commit((current) => ({
+            ...current,
+            documents: [document, ...current.documents],
+          }));
+          return document;
+        }
+
+        return null;
+      },
+      scanAndAddDocument: async () => {
+        const scannedDocument = await documentService.scanDocument();
+
+        if (scannedDocument) {
+          const document = await analyzeAndMergeDocument(scannedDocument, state.settings.language, state.settings.ai);
+          await commit((current) => ({
+            ...current,
+            documents: [document, ...current.documents],
+          }));
+          return document;
+        }
+
+        return null;
       },
       updateDocument: async (id, patch) => {
+        const existing = state.documents.find((document) => document.id === id);
+
+        if (!existing) {
+          return;
+        }
+
+        const updated = await analyzeAndMergeDocument(
+          {
+            ...existing,
+            ...patch,
+            updatedAt: new Date().toISOString(),
+          },
+          state.settings.language,
+          state.settings.ai,
+        );
+
         await commit((current) => ({
           ...current,
-          documents: current.documents.map((document) => {
-            if (document.id !== id) {
-              return document;
-            }
-
-            const updated = {
-              ...document,
-              ...patch,
-              updatedAt: new Date().toISOString(),
-            };
-            const documentWithText = {
-              ...updated,
-              extractedText: updated.extractedText ?? analysisService.buildPlaceholderText(updated, state.settings.language),
-            };
-
-            return {
-              ...documentWithText,
-              analysis: analysisService.analyzeDocument(documentWithText, state.settings.language),
-            };
-          }),
+          documents: current.documents.map((document) => (document.id === id ? updated : document)),
         }));
       },
       deleteDocument: async (id) => {
@@ -213,7 +298,34 @@ export function FinPilotProvider({ children }: PropsWithChildren) {
         }));
       },
       answerQuestion: async (question) => {
-        const answer = assistantService.answerQuestion(question, state.documents, state.settings.language);
+        let answer = assistantService.answerQuestion(question, state.documents, state.settings.language);
+
+        if (state.settings.ai.cloudEnabled && state.settings.ai.cloudDocumentConsent && state.documents.length > 0) {
+          try {
+            const cloudAnswer = await aiGatewayService.answerQuestion({
+              question,
+              language: state.settings.language,
+              ...selectDocumentsForQuestion(question, state.documents),
+            });
+            answer = {
+              id: newId('q'),
+              question,
+              answer: cloudAnswer.answer,
+              confidence: cloudAnswer.confidence,
+              documentId: cloudAnswer.documentId,
+              documentTitle: cloudAnswer.documentTitle,
+              excerpt: cloudAnswer.excerpt,
+              recommendation: cloudAnswer.recommendation,
+              source: 'cloud-ai',
+              requestId: cloudAnswer.requestId,
+              model: cloudAnswer.model,
+              createdAt: new Date().toISOString(),
+            };
+          } catch {
+            answer = assistantService.answerQuestion(question, state.documents, state.settings.language);
+          }
+        }
+
         await commit((current) => ({
           ...current,
           questions: [answer, ...current.questions],
@@ -239,7 +351,42 @@ export function FinPilotProvider({ children }: PropsWithChildren) {
           settings: {
             ...current.settings,
             ...patch,
+            ai: patch.ai
+              ? {
+                  ...current.settings.ai,
+                  ...patch.ai,
+                }
+              : current.settings.ai,
           },
+        }));
+      },
+      testAiConnection: async () => {
+        const check = await aiGatewayService.checkHealth();
+        await commit((current) => ({
+          ...current,
+          settings: {
+            ...current.settings,
+            ai: {
+              ...current.settings.ai,
+              lastConnectionCheck: check,
+            },
+          },
+        }));
+        return check;
+      },
+      reprocessDocuments: async () => {
+        const reprocessed = new Map<string, FinancialDocument>();
+
+        for (const document of state.documents) {
+          reprocessed.set(
+            document.id,
+            await analyzeAndMergeDocument(document, state.settings.language, state.settings.ai),
+          );
+        }
+
+        await commit((current) => ({
+          ...current,
+          documents: current.documents.map((document) => reprocessed.get(document.id) ?? document),
         }));
       },
       completeOnboarding: async (input) => {

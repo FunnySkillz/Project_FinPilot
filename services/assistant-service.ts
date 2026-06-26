@@ -61,6 +61,7 @@ function buildAnswer(question: string, language: AppLanguage, document?: Financi
       confidence: 'low' as const,
       excerpt: translate(language, 'ask.noMatch.excerpt'),
       recommendation: translate(language, 'ask.noMatch.recommendation'),
+      source: 'local' as const,
     };
   }
 
@@ -96,6 +97,7 @@ function buildAnswer(question: string, language: AppLanguage, document?: Financi
         document.extractedText ??
         translate(language, 'ask.generic.excerptFallback'),
       recommendation: translate(language, 'ask.coverage.recommendation'),
+      source: 'local' as const,
     };
   }
 
@@ -113,6 +115,7 @@ function buildAnswer(question: string, language: AppLanguage, document?: Financi
         document.extractedText ??
         translate(language, 'ask.generic.excerptFallback'),
       recommendation: translate(language, 'ask.warranty.recommendation'),
+      source: 'local' as const,
     };
   }
 
@@ -122,6 +125,7 @@ function buildAnswer(question: string, language: AppLanguage, document?: Financi
       confidence: 'medium' as const,
       excerpt: document.analysis?.excerpt ?? translate(language, 'ask.afford.excerpt'),
       recommendation: translate(language, 'ask.afford.recommendation'),
+      source: 'local' as const,
     };
   }
 
@@ -136,6 +140,7 @@ function buildAnswer(question: string, language: AppLanguage, document?: Financi
       document.extractedText ??
       translate(language, 'ask.generic.excerptFallback'),
     recommendation: translate(language, 'ask.generic.recommendation'),
+    source: 'local' as const,
   };
 }
 

@@ -14,6 +14,10 @@ import type { AiQuestion } from '@/types/finpilot';
 
 const sampleQuestionKeys = ['ask.sample.coverage', 'ask.sample.warranty', 'ask.sample.insurance'] as const;
 
+function answerSourceLabelKey(source: AiQuestion['source']) {
+  return source === 'cloud-ai' ? 'ask.source.cloud' : 'ask.source.local';
+}
+
 export default function AskScreen() {
   const { state, answerQuestion } = useFinPilot();
   const { t } = useLanguage();
@@ -79,6 +83,7 @@ export default function AskScreen() {
             <Body className="font-extrabold">{t('ask.answer')}</Body>
             <ConfidenceBadge confidence={currentAnswer.confidence} />
           </HStack>
+          <Muted>{t(answerSourceLabelKey(currentAnswer.source))}</Muted>
           <Body>{currentAnswer.answer}</Body>
           <Box className="gap-1.5 rounded-fin bg-fin-surfaceAlt p-2.5">
             <Muted>{t('common.relevantExcerpt')}</Muted>
@@ -90,6 +95,7 @@ export default function AskScreen() {
             })}
           </Muted>
           <Body className="font-extrabold text-fin-primaryDark">{currentAnswer.recommendation}</Body>
+          <Muted>{t('ask.disclaimer')}</Muted>
         </Card>
       ) : null}
 

@@ -23,9 +23,9 @@ export default function SettingsLayout() {
       <Stack.Screen name="appearance" options={{ title: t('navigation.stack.appearance') }} />
       <Stack.Screen name="language" options={{ title: t('navigation.stack.language') }} />
       <Stack.Screen name="security" options={{ title: t('navigation.stack.security') }} />
+      <Stack.Screen name="ai" options={{ title: t('navigation.stack.ai') }} />
       <Stack.Screen name="legal" options={{ title: t('navigation.stack.legal') }} />
       <Stack.Screen name="data" options={{ title: t('navigation.stack.data') }} />
     </Stack>
   );
 }
-

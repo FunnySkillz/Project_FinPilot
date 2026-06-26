@@ -84,10 +84,13 @@ export const analysisService = {
       }),
       coveredRisks: coverage.coveredRisks,
       exclusions: coverage.exclusions,
+      warnings: [translate(language, 'analysis.warning.placeholder')],
       excerpt:
         document.extractedText?.slice(0, 180) ||
         translate(language, 'analysis.excerpt', { title: document.title, category }),
       confidence: document.provider || document.amount ? 'medium' : 'low',
+      source: 'placeholder',
+      needsReview: true,
       generatedAt,
     };
   },

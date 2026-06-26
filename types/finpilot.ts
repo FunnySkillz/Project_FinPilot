@@ -29,6 +29,27 @@ export type AppLanguage = 'en' | 'de';
 export type AppLocale = 'en-AT' | 'de-AT';
 export type ThemeMode = 'system' | 'light' | 'dark';
 export type ThemeModeResolved = 'light' | 'dark';
+export type AiOcrMode = 'hybrid' | 'native' | 'cloud' | 'off';
+export type AiConnectionStatus = 'unknown' | 'connected' | 'error';
+export type AiProvider = 'openai' | 'none';
+export type DocumentAnalysisSource = 'placeholder' | 'native-ocr' | 'cloud-ai';
+export type AiAnswerSource = 'local' | 'cloud-ai';
+
+export type AiConnectionCheck = {
+  status: AiConnectionStatus;
+  checkedAt: string;
+  message?: string;
+  provider?: AiProvider;
+  version?: string;
+  model?: string;
+};
+
+export type AiSettings = {
+  cloudEnabled: boolean;
+  cloudDocumentConsent: boolean;
+  ocrMode: AiOcrMode;
+  lastConnectionCheck?: AiConnectionCheck;
+};
 
 export type Expense = {
   id: string;
@@ -58,8 +79,13 @@ export type DocumentAnalysis = {
   summary: string;
   coveredRisks: string[];
   exclusions: string[];
+  warnings: string[];
   excerpt: string;
   confidence: Confidence;
+  source: DocumentAnalysisSource;
+  requestId?: string;
+  model?: string;
+  needsReview: boolean;
   generatedAt: string;
 };
 
@@ -90,6 +116,9 @@ export type AiQuestion = {
   documentTitle?: string;
   excerpt: string;
   recommendation: string;
+  source?: AiAnswerSource;
+  requestId?: string;
+  model?: string;
   createdAt: string;
 };
 
@@ -125,6 +154,11 @@ export type AppSettings = {
   themeMode: ThemeMode;
   appLockEnabled: boolean;
   sampleDataEnabled: boolean;
+  ai: AiSettings;
+};
+
+export type AppSettingsPatch = Partial<Omit<AppSettings, 'ai'>> & {
+  ai?: Partial<AiSettings>;
 };
 
 export type FinPilotState = {
