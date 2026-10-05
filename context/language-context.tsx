@@ -3,7 +3,6 @@ import { createContext, PropsWithChildren, useContext, useMemo } from 'react';
 import { languageToLocaleMap, translate, type InterpolationValues, type TranslationKey } from '@/i18n';
 import type { AppLanguage, AppLocale } from '@/types/finpilot';
 import { useFinPilot } from '@/context/finpilot-context';
-import { languagePreferenceService } from '@/services/language-preference';
 
 type LanguageContextValue = {
   language: AppLanguage;
@@ -23,7 +22,6 @@ export function LanguageProvider({ children }: PropsWithChildren) {
       language,
       locale: languageToLocaleMap[language],
       setLanguage: async (next) => {
-        languagePreferenceService.save(next);
         await updateSettings({ language: next });
       },
       t: (key, values) => translate(language, key, values),

@@ -1,5 +1,7 @@
+import { Buffer } from 'node:buffer';
 import { createServer } from 'node:http';
 import { randomUUID } from 'node:crypto';
+import { bankFileContent, bankPrompt, normalizeTransactions } from './bank-import.mjs';
 
 const PORT = Number(process.env.PORT ?? 8787);
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
@@ -94,6 +96,7 @@ function parseJsonObject(text) {
 async function createOpenAiResponse({ input }) {
   const response = await fetch('https://api.openai.com/v1/responses', {
     method: 'POST',
+    signal: AbortSignal.timeout(110000),
     headers: {
       Authorization: `Bearer ${OPENAI_API_KEY}`,
       'Content-Type': 'application/json',
@@ -303,6 +306,19 @@ const server = createServer(async (req, res) => {
     }
     if (req.method === 'POST' && url.pathname === '/v1/ask') {
       await answerQuestion(req, res, requestId);
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/v1/transactions/extract') {
+      const body = await readJson(req);
+      const file = bankFileContent(body);
+      if (!requireOpenAi(res, requestId)) return;
+      const response = await createOpenAiResponse({ input: [
+        { role: 'system', content: [{ type: 'input_text', text: bankPrompt(body.language) }] },
+        { role: 'user', content: [file] },
+      ] });
+      const transactions = normalizeTransactions(parseJsonObject(extractOutputText(response)));
+      sendJson(res, 200, { ok: true, requestId, transactions });
       return;
     }
 

@@ -1,5 +1,10 @@
 import type {
   AppLanguage,
+  PaymentMethod,
+  ExpenseCadence,
+  ExpenseKind,
+  DocumentAnalysisSource,
+  ThemeMode,
   AppLocale,
   Category,
   Confidence,
@@ -63,4 +68,20 @@ export function purchaseTypeLabelKey(type: PurchaseType): TranslationKey {
 
 export function purchasePriorityLabelKey(priority: PurchasePriority): TranslationKey {
   return `purchase.priority.${priority}` as TranslationKey;
+}
+
+export function paymentMethodLabelKey(value: PaymentMethod | 'none'): TranslationKey {
+  return value === 'none' ? 'expenses.payment.none' : `expenses.payment.${value}`;
+}
+export function cadenceLabelKey(value: ExpenseCadence): TranslationKey {
+  return `expenses.cadence.${value}`;
+}
+export function kindLabelKey(value: ExpenseKind): TranslationKey {
+  return value === 'recurring' ? 'expenses.recurring' : 'expenses.oneOff';
+}
+export function analysisSourceLabelKey(value: DocumentAnalysisSource): TranslationKey {
+  return `analysis.source.${value}`;
+}
+export function getThemeLabelKey(value: ThemeMode): TranslationKey {
+  return `theme.${value}`;
 }

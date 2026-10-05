@@ -1,5 +1,7 @@
+import { todayString, isValidDate } from '@/utils/dates';
+import { parseMoneyInput, parseTags } from '@/utils/form-input';
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 import { Camera, Edit3, Image as ImageIcon, Plus, Upload, X } from 'lucide-react-native';
 
@@ -30,7 +32,7 @@ const emptyManualForm: ManualDocumentForm = {
   title: '',
   provider: '',
   amount: '',
-  documentDate: new Date().toISOString().slice(0, 10),
+  documentDate: todayString(),
   category: 'Other',
   notes: '',
   tags: '',
@@ -42,9 +44,11 @@ export default function DocumentsScreen() {
   const { t } = useLanguage();
   const [selectedCategory, setSelectedCategory] = useState<Category | 'All'>('All');
   const [query, setQuery] = useState('');
-  const [isPicking, setIsPicking] = useState(false);
-  const [isImportingPhoto, setIsImportingPhoto] = useState(false);
-  const [isScanning, setIsScanning] = useState(false);
+  const [activeImport, setActiveImport] = useState<'file' | 'photo' | 'scan'>();
+  const importLock = useRef(false);
+  const isPicking = activeImport === 'file';
+  const isImportingPhoto = activeImport === 'photo';
+  const isScanning = activeImport === 'scan';
   const [isSavingManual, setIsSavingManual] = useState(false);
   const [showManualForm, setShowManualForm] = useState(false);
   const [manualForm, setManualForm] = useState<ManualDocumentForm>(emptyManualForm);
@@ -52,12 +56,12 @@ export default function DocumentsScreen() {
     showManualForm &&
     Boolean(
       manualForm.title ||
-        manualForm.provider ||
-        manualForm.amount ||
-        manualForm.notes ||
-        manualForm.tags ||
-        manualForm.documentDate !== emptyManualForm.documentDate ||
-        manualForm.category !== emptyManualForm.category,
+      manualForm.provider ||
+      manualForm.amount ||
+      manualForm.notes ||
+      manualForm.tags ||
+      manualForm.documentDate !== emptyManualForm.documentDate ||
+      manualForm.category !== emptyManualForm.category,
     );
 
   useUnsavedChangesGuard(hasUnsavedManualForm);
@@ -79,45 +83,24 @@ export default function DocumentsScreen() {
     });
   }, [query, selectedCategory, state.documents]);
 
-  const upload = async () => {
-    setIsPicking(true);
+  const importDocument = async (kind: 'file' | 'photo' | 'scan') => {
+    if (importLock.current) return;
+    const actions = {
+      file: { run: pickAndAddDocument, title: 'documents.uploadErrorTitle', body: 'documents.uploadErrorBody' },
+      photo: { run: importPhotoAndAddDocument, title: 'documents.photoErrorTitle', body: 'documents.photoErrorBody' },
+      scan: { run: scanAndAddDocument, title: 'documents.scanErrorTitle', body: 'documents.scanErrorBody' },
+    } as const;
+    const action = actions[kind];
+    importLock.current = true;
+    setActiveImport(kind);
     try {
-      const document = await pickAndAddDocument();
-      if (document) {
-        router.push(`/document/${document.id}`);
-      }
+      const document = await action.run();
+      if (document) router.push(`/document/${document.id}`);
     } catch {
-      Alert.alert(t('documents.uploadErrorTitle'), t('documents.uploadErrorBody'));
+      Alert.alert(t(action.title), t(action.body));
     } finally {
-      setIsPicking(false);
-    }
-  };
-
-  const scan = async () => {
-    setIsScanning(true);
-    try {
-      const document = await scanAndAddDocument();
-      if (document) {
-        router.push(`/document/${document.id}`);
-      }
-    } catch {
-      Alert.alert(t('documents.scanErrorTitle'), t('documents.scanErrorBody'));
-    } finally {
-      setIsScanning(false);
-    }
-  };
-
-  const importPhoto = async () => {
-    setIsImportingPhoto(true);
-    try {
-      const document = await importPhotoAndAddDocument();
-      if (document) {
-        router.push(`/document/${document.id}`);
-      }
-    } catch {
-      Alert.alert(t('documents.photoErrorTitle'), t('documents.photoErrorBody'));
-    } finally {
-      setIsImportingPhoto(false);
+      importLock.current = false;
+      setActiveImport(undefined);
     }
   };
 
@@ -145,7 +128,14 @@ export default function DocumentsScreen() {
       return;
     }
 
-    const amount = manualForm.amount ? Number(manualForm.amount.replace(',', '.')) : undefined;
+    const amount = manualForm.amount.trim() ? parseMoneyInput(manualForm.amount) : undefined;
+    if (
+      (amount !== undefined && !Number.isFinite(amount)) ||
+      (manualForm.documentDate && !isValidDate(manualForm.documentDate))
+    ) {
+      Alert.alert(t('documents.saveErrorTitle'), t('forms.invalidFields'));
+      return;
+    }
     if (!manualForm.title.trim()) {
       Alert.alert(t('documents.missingTitleTitle'), t('documents.missingTitleBody'));
       return;
@@ -158,10 +148,7 @@ export default function DocumentsScreen() {
       amount: Number.isFinite(amount) ? amount : undefined,
       documentDate: manualForm.documentDate || undefined,
       notes: manualForm.notes.trim() || undefined,
-      tags: manualForm.tags
-        .split(',')
-        .map((tag) => tag.trim())
-        .filter(Boolean),
+      tags: parseTags(manualForm.tags),
     };
 
     setIsSavingManual(true);
@@ -186,30 +173,34 @@ export default function DocumentsScreen() {
 
       <VStack className="gap-2.5">
         <Button
-          onPress={upload}
+          onPress={() => importDocument('file')}
           icon={Upload}
-          disabled={isPicking || isImportingPhoto || isScanning || isSavingManual}>
+          disabled={isPicking || isImportingPhoto || isScanning || isSavingManual}
+        >
           {isPicking ? t('documents.openingPicker') : t('documents.uploadAction')}
         </Button>
         <Button
           variant="secondary"
-          onPress={importPhoto}
+          onPress={() => importDocument('photo')}
           icon={ImageIcon}
-          disabled={isPicking || isImportingPhoto || isScanning || isSavingManual}>
+          disabled={isPicking || isImportingPhoto || isScanning || isSavingManual}
+        >
           {isImportingPhoto ? t('documents.openingPhoto') : t('documents.photoAction')}
         </Button>
         <Button
           variant="secondary"
-          onPress={scan}
+          onPress={() => importDocument('scan')}
           icon={Camera}
-          disabled={isPicking || isImportingPhoto || isScanning || isSavingManual}>
+          disabled={isPicking || isImportingPhoto || isScanning || isSavingManual}
+        >
           {isScanning ? t('documents.openingCamera') : t('documents.scanAction')}
         </Button>
         <Button
           variant="secondary"
           icon={showManualForm ? X : Edit3}
           onPress={toggleManualForm}
-          disabled={isPicking || isImportingPhoto || isScanning || isSavingManual}>
+          disabled={isPicking || isImportingPhoto || isScanning || isSavingManual}
+        >
           {showManualForm ? t('documents.closeManualForm') : t('documents.manualRecord')}
         </Button>
       </VStack>

@@ -1,3 +1,6 @@
+import { getThemeLabelKey , translate } from '@/i18n';
+import { todayString } from '@/utils/dates';
+import { parseMoneyInput } from '@/utils/form-input';
 import { ArrowLeft, ArrowRight, Check, Database } from 'lucide-react-native';
 import { useMemo, useRef, useState } from 'react';
 import { Alert } from 'react-native';
@@ -11,7 +14,6 @@ import { useFinPilot } from '@/context/finpilot-context';
 import { useLanguage } from '@/context/language-context';
 import { useThemeMode } from '@/context/theme-mode-context';
 import { getFinTheme } from '@/constants/finpilot';
-import { translate } from '@/i18n';
 import type { AppLanguage, Category, ExpenseInput, PaymentMethod, ThemeMode } from '@/types/finpilot';
 import { formatCurrency } from '@/utils/formatters';
 
@@ -197,26 +199,12 @@ const EMPTY_COSTS: Record<MoneyFieldKey, string> = {
   other: '',
 };
 
-function getThemeLabelKey(value: ThemeMode) {
-  if (value === 'light') {
-    return 'theme.light';
-  }
-  if (value === 'dark') {
-    return 'theme.dark';
-  }
-  return 'theme.system';
-}
-
-function todayString() {
-  return new Date().toISOString().slice(0, 10);
-}
-
 function parseMoney(value: string) {
   if (!value.trim()) {
     return undefined;
   }
 
-  const parsed = Number(value.replace(',', '.'));
+  const parsed = parseMoneyInput(value);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : Number.NaN;
 }
 
@@ -548,7 +536,8 @@ export default function WelcomeScreen() {
               accessibilityRole="button"
               disabled={isSaving}
               onPress={() => submit(true)}
-              className="min-h-11 flex-row items-center justify-center gap-2 rounded-fin border border-fin-border px-3 py-2">
+              className="min-h-11 flex-row items-center justify-center gap-2 rounded-fin border border-fin-border px-3 py-2"
+            >
               <Database size={17} color={theme.primary} strokeWidth={2.4} />
               <Body className="font-bold text-fin-primary">{t('onboarding.samples')}</Body>
             </Pressable>

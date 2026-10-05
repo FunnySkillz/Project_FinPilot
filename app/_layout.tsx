@@ -1,7 +1,6 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Redirect, Stack, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useColorScheme as useNativeColorScheme } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
 import '@/global.css';
@@ -16,7 +15,7 @@ import { getFinTheme } from '@/constants/finpilot';
 import { AppLockProvider, useAppLock } from '@/context/app-lock-context';
 import { FinPilotProvider, useFinPilot } from '@/context/finpilot-context';
 import { LanguageProvider, useLanguage } from '@/context/language-context';
-import { resolveThemeMode, ThemeModeProvider } from '@/context/theme-mode-context';
+import { ThemeModeProvider, useThemeMode } from '@/context/theme-mode-context';
 import type { ThemeModeResolved } from '@/types/finpilot';
 
 export const unstable_settings = {
@@ -87,9 +86,14 @@ function ShellGate({ resolvedMode }: { resolvedMode: ThemeModeResolved }) {
         headerTintColor: theme.text,
         headerShadowVisible: false,
         gestureEnabled: true,
-      }}>
+      }}
+    >
       <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen
+        name="bank-import"
+        options={{ headerShown: true, title: t('bankImport.title'), headerBackButtonDisplayMode: 'minimal' }}
+      />
       <Stack.Screen
         name="document/[id]"
         options={{
@@ -104,11 +108,8 @@ function ShellGate({ resolvedMode }: { resolvedMode: ThemeModeResolved }) {
   );
 }
 
-function ShellProviders() {
-  const { state } = useFinPilot();
-  const nativeScheme = useNativeColorScheme();
-  const systemMode: ThemeModeResolved = nativeScheme === 'dark' ? 'dark' : 'light';
-  const resolvedMode = resolveThemeMode(state.settings.themeMode, systemMode);
+function ThemedShell() {
+  const { resolvedMode } = useThemeMode();
   const theme = getFinTheme(resolvedMode);
   const navigationTheme = {
     ...(resolvedMode === 'dark' ? DarkTheme : DefaultTheme),
@@ -123,16 +124,22 @@ function ShellProviders() {
   };
 
   return (
+    <ThemeProvider value={navigationTheme}>
+      <GluestackUIProvider colorMode={resolvedMode}>
+        <AppLockProvider>
+          <ShellGate resolvedMode={resolvedMode} />
+          <StatusBar style={resolvedMode === 'dark' ? 'light' : 'dark'} />
+        </AppLockProvider>
+      </GluestackUIProvider>
+    </ThemeProvider>
+  );
+}
+
+function ShellProviders() {
+  return (
     <LanguageProvider>
       <ThemeModeProvider>
-        <ThemeProvider value={navigationTheme}>
-          <GluestackUIProvider colorMode={resolvedMode}>
-            <AppLockProvider>
-              <ShellGate resolvedMode={resolvedMode} />
-              <StatusBar style={resolvedMode === 'dark' ? 'light' : 'dark'} />
-            </AppLockProvider>
-          </GluestackUIProvider>
-        </ThemeProvider>
+        <ThemedShell />
       </ThemeModeProvider>
     </LanguageProvider>
   );

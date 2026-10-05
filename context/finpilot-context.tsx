@@ -1,12 +1,6 @@
-import {
-  createContext,
-  PropsWithChildren,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import { hasCloudDocumentConsent } from '@/utils/ai-permissions';
+import { rankDocuments } from '@/utils/document-search';
+import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 import { aiGatewayService } from '@/services/ai-gateway-service';
 import { assistantService } from '@/services/assistant-service';
@@ -36,6 +30,7 @@ type FinPilotContextValue = {
   isLoading: boolean;
   error?: string;
   addExpense: (input: ExpenseInput) => Promise<void>;
+  addExpenses: (inputs: ExpenseInput[]) => Promise<void>;
   updateExpense: (id: string, patch: Partial<ExpenseInput>) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
   addManualDocument: (input: DocumentInput) => Promise<void>;
@@ -81,7 +76,11 @@ function createManualDocument(input: DocumentInput): FinancialDocument {
   };
 }
 
-async function analyzeAndMergeDocument(document: FinancialDocument, language: AppLanguage, ai: FinPilotState['settings']['ai']) {
+async function analyzeAndMergeDocument(
+  document: FinancialDocument,
+  language: AppLanguage,
+  ai: FinPilotState['settings']['ai'],
+) {
   const result = await ocrService.analyzeDocument(document, language, ai);
   const analysis = result.analysis;
 
@@ -97,30 +96,8 @@ async function analyzeAndMergeDocument(document: FinancialDocument, language: Ap
 }
 
 function selectDocumentsForQuestion(question: string, documents: FinancialDocument[]) {
-  const terms = question
-    .toLowerCase()
-    .split(/\W+/)
-    .filter((term) => term.length > 2);
-
   return {
-    documents: documents
-      .map((document) => {
-        const haystack = [
-          document.title,
-          document.provider,
-          document.notes,
-          document.extractedText,
-          document.analysis?.summary,
-          document.analysis?.excerpt,
-          ...(document.tags ?? []),
-        ]
-          .filter(Boolean)
-          .join(' ')
-          .toLowerCase();
-        const score = terms.reduce((total, term) => total + (haystack.includes(term) ? 1 : 0), 0);
-        return { document, score };
-      })
-      .sort((left, right) => right.score - left.score || right.document.updatedAt.localeCompare(left.document.updatedAt))
+    documents: rankDocuments(question, documents)
       .slice(0, 5)
       .map(({ document }) => ({
         id: document.id,
@@ -140,65 +117,55 @@ export function FinPilotProvider({ children }: PropsWithChildren) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | undefined>();
 
-  const loadState = useCallback(async () => {
+  const loadState = useCallback(async (isCurrent: () => boolean = () => true) => {
     setIsLoading(true);
     setError(undefined);
     try {
       const loadedState = await storageService.loadState();
-      setState(loadedState);
+      if (isCurrent()) setState(loadedState);
     } catch {
-      setError('FinPilot could not load local data.');
+      if (isCurrent()) setError('FinPilot could not load local data.');
     } finally {
-      setIsLoading(false);
+      if (isCurrent()) setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
     let mounted = true;
-
-    storageService
-      .loadState()
-      .then((loadedState) => {
-        if (mounted) {
-          setState(loadedState);
-        }
-      })
-      .catch(() => {
-        if (mounted) {
-          setError('FinPilot could not load local data.');
-        }
-      })
-      .finally(() => {
-        if (mounted) {
-          setIsLoading(false);
-        }
-      });
-
+    void loadState(() => mounted);
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [loadState]);
 
   const commit = useCallback(
     async (updater: (current: FinPilotState) => FinPilotState) => {
       const next = updater(state);
-      setState(next);
       await storageService.saveState(next);
+      setState(next);
     },
     [state],
   );
 
   const value = useMemo<FinPilotContextValue>(() => {
+    const addExpenses = async (inputs: ExpenseInput[]) => {
+      await commit((current) => ({ ...current, expenses: [...inputs.map(createExpense), ...current.expenses] }));
+    };
+    const addDocument = async (input: FinancialDocument) => {
+      const document = await analyzeAndMergeDocument(input, state.settings.language, state.settings.ai);
+      await commit((current) => ({ ...current, documents: [document, ...current.documents] }));
+      return document;
+    };
+    const importDocument = async (pick: () => Promise<FinancialDocument | null>) => {
+      const picked = await pick();
+      return picked ? addDocument(picked) : null;
+    };
     return {
       state,
       isLoading,
       error,
-      addExpense: async (input) => {
-        await commit((current) => ({
-          ...current,
-          expenses: [createExpense(input), ...current.expenses],
-        }));
-      },
+      addExpenses,
+      addExpense: (input) => addExpenses([input]),
       updateExpense: async (id, patch) => {
         await commit((current) => ({
           ...current,
@@ -214,58 +181,11 @@ export function FinPilotProvider({ children }: PropsWithChildren) {
         }));
       },
       addManualDocument: async (input) => {
-        const document = await analyzeAndMergeDocument(
-          createManualDocument(input),
-          state.settings.language,
-          state.settings.ai,
-        );
-        await commit((current) => ({
-          ...current,
-          documents: [document, ...current.documents],
-        }));
+        await addDocument(createManualDocument(input));
       },
-      pickAndAddDocument: async () => {
-        const pickedDocument = await documentService.pickDocument();
-
-        if (pickedDocument) {
-          const document = await analyzeAndMergeDocument(pickedDocument, state.settings.language, state.settings.ai);
-          await commit((current) => ({
-            ...current,
-            documents: [document, ...current.documents],
-          }));
-          return document;
-        }
-
-        return null;
-      },
-      importPhotoAndAddDocument: async () => {
-        const pickedDocument = await documentService.pickImage();
-
-        if (pickedDocument) {
-          const document = await analyzeAndMergeDocument(pickedDocument, state.settings.language, state.settings.ai);
-          await commit((current) => ({
-            ...current,
-            documents: [document, ...current.documents],
-          }));
-          return document;
-        }
-
-        return null;
-      },
-      scanAndAddDocument: async () => {
-        const scannedDocument = await documentService.scanDocument();
-
-        if (scannedDocument) {
-          const document = await analyzeAndMergeDocument(scannedDocument, state.settings.language, state.settings.ai);
-          await commit((current) => ({
-            ...current,
-            documents: [document, ...current.documents],
-          }));
-          return document;
-        }
-
-        return null;
-      },
+      pickAndAddDocument: () => importDocument(documentService.pickDocument),
+      importPhotoAndAddDocument: () => importDocument(documentService.pickImage),
+      scanAndAddDocument: () => importDocument(documentService.scanDocument),
       updateDocument: async (id, patch) => {
         const existing = state.documents.find((document) => document.id === id);
 
@@ -300,7 +220,7 @@ export function FinPilotProvider({ children }: PropsWithChildren) {
       answerQuestion: async (question) => {
         let answer = assistantService.answerQuestion(question, state.documents, state.settings.language);
 
-        if (state.settings.ai.cloudEnabled && state.settings.ai.cloudDocumentConsent && state.documents.length > 0) {
+        if (hasCloudDocumentConsent(state.settings.ai) && state.documents.length > 0) {
           try {
             const cloudAnswer = await aiGatewayService.answerQuestion({
               question,
@@ -402,7 +322,7 @@ export function FinPilotProvider({ children }: PropsWithChildren) {
         );
         setState(next);
       },
-      retryLoad: loadState,
+      retryLoad: () => loadState(),
       resetWithSamples: async () => {
         await pinAuthService.clearPinAsync();
         const seeded = await storageService.resetWithSamples();

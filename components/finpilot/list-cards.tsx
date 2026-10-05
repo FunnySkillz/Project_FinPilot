@@ -1,3 +1,4 @@
+import { paymentMethodLabelKey, cadenceLabelKey, analysisSourceLabelKey , purchaseTypeLabelKey } from '@/i18n';
 import { FileText } from 'lucide-react-native';
 
 import { CategoryBadge, ConfidenceBadge, StatusBadge } from '@/components/finpilot/badges';
@@ -7,28 +8,8 @@ import { Box, HStack, Pressable, VStack } from '@/components/ui/gluestack';
 import { getFinTheme } from '@/constants/finpilot';
 import { useLanguage } from '@/context/language-context';
 import { useThemeMode } from '@/context/theme-mode-context';
-import { purchaseTypeLabelKey } from '@/i18n';
-import type {
-  DocumentAnalysisSource,
-  Expense,
-  ExpenseCadence,
-  FinancialDocument,
-  PaymentMethod,
-  PurchaseDecision,
-} from '@/types/finpilot';
+import type { Expense, FinancialDocument, PurchaseDecision } from '@/types/finpilot';
 import { formatCurrency, formatDate } from '@/utils/formatters';
-
-function paymentMethodLabelKey(paymentMethod: PaymentMethod) {
-  return `expenses.payment.${paymentMethod}` as const;
-}
-
-function cadenceLabelKey(cadence: ExpenseCadence) {
-  return `expenses.cadence.${cadence}` as const;
-}
-
-function analysisSourceLabelKey(source: DocumentAnalysisSource) {
-  return `analysis.source.${source}` as const;
-}
 
 function notePreview(notes: string) {
   return notes.length > 120 ? `${notes.slice(0, 117)}...` : notes;
@@ -65,7 +46,11 @@ export function ExpenseCard({ expense, onPress }: { expense: Expense; onPress?: 
           </HStack>
           <HStack className="flex-wrap gap-2">
             <CategoryBadge category={expense.category} />
-            {expense.endDate ? <Muted>{t('expenses.deadline')} {formatDate(expense.endDate, locale)}</Muted> : null}
+            {expense.endDate ? (
+              <Muted>
+                {t('expenses.deadline')} {formatDate(expense.endDate, locale)}
+              </Muted>
+            ) : null}
           </HStack>
           {tagPreview.length > 0 ? (
             <HStack className="flex-wrap gap-1.5">

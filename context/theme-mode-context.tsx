@@ -2,7 +2,6 @@ import { createContext, PropsWithChildren, useContext, useMemo } from 'react';
 import { useColorScheme as useNativeColorScheme } from 'react-native';
 
 import { useFinPilot } from '@/context/finpilot-context';
-import { themePreferenceService } from '@/services/theme-preference';
 import type { ThemeMode, ThemeModeResolved } from '@/types/finpilot';
 
 type ThemeModeContextValue = {
@@ -29,7 +28,6 @@ export function ThemeModeProvider({ children }: PropsWithChildren) {
       mode,
       resolvedMode,
       setMode: async (next) => {
-        themePreferenceService.save(next);
         await updateSettings({ themeMode: next });
       },
     }),

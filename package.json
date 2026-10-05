@@ -14,7 +14,9 @@
     "typecheck": "tsc --noEmit",
     "i18n:parity": "node ./scripts/check-i18n-parity.js",
     "i18n:parity:ci": "node ./scripts/check-i18n-parity.js",
-    "release:preflight": "npm run lint && npm run typecheck && npm run i18n:parity:ci"
+    "release:preflight": "npm run lint && npm run typecheck && npm run i18n:parity:ci",
+    "test:bank-import": "node --test scripts/test-bank-import.mjs",
+    "test:cleanup": "node --test scripts/test-cleanup.mjs"
   },
   "dependencies": {
     "@gluestack-ui/utils": "^3.0.21",
@@ -23,6 +25,7 @@
     "@react-navigation/elements": "^2.6.3",
     "@react-navigation/native": "^7.1.8",
     "expo": "~54.0.35",
+    "expo-clipboard": "~8.0.8",
     "expo-constants": "~18.0.13",
     "expo-crypto": "~15.0.9",
     "expo-document-picker": "~14.0.8",

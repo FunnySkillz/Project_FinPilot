@@ -1,3 +1,7 @@
+import { paymentMethodLabelKey, cadenceLabelKey, kindLabelKey , categoryLabelKey } from '@/i18n';
+import { todayString, isValidDate } from '@/utils/dates';
+import { parseMoneyInput, parseTags } from '@/utils/form-input';
+import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Alert } from 'react-native';
 import { Plus, Save, Trash2 } from 'lucide-react-native';
@@ -11,7 +15,6 @@ import { Box, Pressable } from '@/components/ui/gluestack';
 import { useFinPilot } from '@/context/finpilot-context';
 import { useLanguage } from '@/context/language-context';
 import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard';
-import { categoryLabelKey } from '@/i18n';
 import type { Category, Expense, ExpenseCadence, ExpenseInput, ExpenseKind, PaymentMethod } from '@/types/finpilot';
 import { CADENCES, CATEGORIES, EXPENSE_KINDS, PAYMENT_METHODS, calculateFinanceSummary } from '@/utils/finance';
 import { formatCurrency } from '@/utils/formatters';
@@ -37,10 +40,6 @@ type ExpenseForm = {
 const PAYMENT_METHOD_OPTIONS: PaymentMethodOption[] = ['none', ...PAYMENT_METHODS];
 const EXPENSE_KIND_FILTERS: ExpenseKindFilter[] = ['all', ...EXPENSE_KINDS];
 const CATEGORY_FILTERS: (Category | 'All')[] = ['All', ...CATEGORIES];
-
-function todayString() {
-  return new Date().toISOString().slice(0, 10);
-}
 
 function createEmptyForm(kind: ExpenseKind = 'recurring'): ExpenseForm {
   return {
@@ -75,25 +74,6 @@ function formFromExpense(expense: Expense): ExpenseForm {
   };
 }
 
-function parseTags(value: string) {
-  return value
-    .split(',')
-    .map((tag) => tag.trim())
-    .filter(Boolean);
-}
-
-function paymentMethodLabelKey(paymentMethod: PaymentMethodOption) {
-  return paymentMethod === 'none' ? 'expenses.payment.none' : (`expenses.payment.${paymentMethod}` as const);
-}
-
-function cadenceLabelKey(cadence: ExpenseCadence) {
-  return `expenses.cadence.${cadence}` as const;
-}
-
-function kindLabelKey(kind: ExpenseKind) {
-  return kind === 'recurring' ? 'expenses.recurring' : 'expenses.oneOff';
-}
-
 function matchesSearch(expense: Expense, query: string) {
   if (!query) {
     return true;
@@ -118,15 +98,7 @@ export default function ExpensesScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const hasUnsavedChanges =
     showForm &&
-    Boolean(
-      editingId ||
-        form.name ||
-        form.amount ||
-        form.merchant ||
-        form.tags ||
-        form.notes ||
-        form.linkedDocumentId,
-    );
+    Boolean(editingId || form.name || form.amount || form.merchant || form.tags || form.notes || form.linkedDocumentId);
 
   useUnsavedChangesGuard(hasUnsavedChanges);
 
@@ -152,23 +124,12 @@ export default function ExpensesScreen() {
       return;
     }
 
-    const amount = Number(form.amount.replace(',', '.'));
+    const amount = parseMoneyInput(form.amount);
     const hasValidAmount = Number.isFinite(amount) && amount > 0;
-    const hasDate = Boolean(form.startDate.trim());
-    const hasCadence = Boolean(form.cadence);
+    const hasDate = isValidDate(form.startDate.trim());
 
     if (!form.name.trim() || !hasValidAmount || !form.category || !hasDate) {
       Alert.alert(t('expenses.validationTitle'), t('expenses.validationBody'));
-      return;
-    }
-
-    if (form.kind === 'recurring' && !hasCadence) {
-      Alert.alert(t('expenses.validationTitle'), t('expenses.validationRecurring'));
-      return;
-    }
-
-    if (form.kind === 'one-off' && !hasDate) {
-      Alert.alert(t('expenses.validationTitle'), t('expenses.validationOneOff'));
       return;
     }
 
@@ -188,6 +149,10 @@ export default function ExpensesScreen() {
       linkedDocumentId: form.linkedDocumentId,
     };
 
+    if (form.kind === 'recurring' && form.endDate && (!isValidDate(form.endDate) || form.endDate < form.startDate)) {
+      Alert.alert(t('expenses.validationTitle'), t('forms.invalidFields'));
+      return;
+    }
     setIsSaving(true);
     try {
       if (editingId) {
@@ -247,6 +212,10 @@ export default function ExpensesScreen() {
           <Body className="text-2xl font-extrabold leading-[30px]">{filteredExpenses.length}</Body>
         </Card>
       </Box>
+
+      <Button variant="secondary" disabled={showForm} onPress={() => router.push('/bank-import')}>
+        {t('bankImport.title')}
+      </Button>
 
       <SectionHeader
         title={t('expenses.expenseList')}
@@ -348,7 +317,8 @@ export default function ExpensesScreen() {
                   onPress={() => setForm((current) => ({ ...current, linkedDocumentId: undefined }))}
                   className={`rounded-fin border px-2.5 py-2 ${
                     !form.linkedDocumentId ? 'border-fin-primary bg-fin-primary' : 'border-fin-border'
-                  }`}>
+                  }`}
+                >
                   <Body className={`text-xs ${!form.linkedDocumentId ? 'font-extrabold text-fin-textOnPrimary' : ''}`}>
                     {t('expenses.none')}
                   </Body>
@@ -361,7 +331,8 @@ export default function ExpensesScreen() {
                       onPress={() => setForm((current) => ({ ...current, linkedDocumentId: document.id }))}
                       className={`rounded-fin border px-2.5 py-2 ${
                         active ? 'border-fin-primary bg-fin-primary' : 'border-fin-border'
-                      }`}>
+                      }`}
+                    >
                       <Body className={`text-xs ${active ? 'font-extrabold text-fin-textOnPrimary' : ''}`}>
                         {document.title}
                       </Body>
@@ -396,7 +367,8 @@ export default function ExpensesScreen() {
                   } finally {
                     setIsSaving(false);
                   }
-                }}>
+                }}
+              >
                 {t('expenses.deleteExpense')}
               </Button>
             ) : null}

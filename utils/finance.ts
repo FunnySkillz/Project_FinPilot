@@ -1,3 +1,4 @@
+import { parseLocalDate } from '@/utils/dates';
 import type { Category, Expense, ExpenseCadence, ExpenseKind, PaymentMethod } from '@/types/finpilot';
 
 export const CATEGORIES: Category[] = [
@@ -26,21 +27,6 @@ export const PAYMENT_METHODS: PaymentMethod[] = [
   'other',
 ];
 
-function parseLocalDate(value?: string) {
-  if (!value) {
-    return null;
-  }
-
-  const dateParts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  if (dateParts) {
-    const [, year, month, day] = dateParts;
-    return new Date(Number(year), Number(month) - 1, Number(day));
-  }
-
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
-}
-
 export function recurringMonthlyExpense(expense: Pick<Expense, 'amount' | 'cadence' | 'kind'>) {
   if (expense.kind !== 'recurring' || !expense.cadence) {
     return 0;
@@ -49,10 +35,7 @@ export function recurringMonthlyExpense(expense: Pick<Expense, 'amount' | 'caden
   return expense.cadence === 'yearly' ? expense.amount / 12 : expense.amount;
 }
 
-export function isOneOffExpenseInMonth(
-  expense: Pick<Expense, 'kind' | 'startDate'>,
-  referenceDate = new Date(),
-) {
+export function isOneOffExpenseInMonth(expense: Pick<Expense, 'kind' | 'startDate'>, referenceDate = new Date()) {
   if (expense.kind !== 'one-off') {
     return false;
   }

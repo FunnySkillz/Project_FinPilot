@@ -1,3 +1,6 @@
+import { analysisSourceLabelKey , categoryLabelKey } from '@/i18n';
+import { isValidDate } from '@/utils/dates';
+import { parseMoneyInput, parseTags } from '@/utils/form-input';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Linking } from 'react-native';
@@ -12,8 +15,7 @@ import { Box, HStack } from '@/components/ui/gluestack';
 import { useFinPilot } from '@/context/finpilot-context';
 import { useLanguage } from '@/context/language-context';
 import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard';
-import { categoryLabelKey } from '@/i18n';
-import type { Category, DocumentAnalysisSource, DocumentInput, FinancialDocument } from '@/types/finpilot';
+import type { Category, DocumentInput, FinancialDocument } from '@/types/finpilot';
 import { CATEGORIES } from '@/utils/finance';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 
@@ -39,26 +41,20 @@ function formFromDocument(document: FinancialDocument): DocumentForm {
   };
 }
 
-function analysisSourceLabelKey(source: DocumentAnalysisSource) {
-  return `analysis.source.${source}` as const;
-}
-
 export default function DocumentDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id: string }>();
   const { state, updateDocument, deleteDocument } = useFinPilot();
   const { locale, t } = useLanguage();
   const canGoBack = typeof router.canGoBack === 'function' ? router.canGoBack() : false;
-  const document = useMemo(
-    () => state.documents.find((item) => item.id === params.id),
-    [params.id, state.documents],
-  );
+  const document = useMemo(() => state.documents.find((item) => item.id === params.id), [params.id, state.documents]);
   const [form, setForm] = useState<DocumentForm | null>(document ? formFromDocument(document) : null);
   const [bypassGuard, setBypassGuard] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const hasUnsavedChanges =
-    Boolean(document && form) && JSON.stringify(form) !== JSON.stringify(formFromDocument(document as FinancialDocument));
+    Boolean(document && form) &&
+    JSON.stringify(form) !== JSON.stringify(formFromDocument(document as FinancialDocument));
 
   useUnsavedChangesGuard(!bypassGuard && hasUnsavedChanges);
 
@@ -90,7 +86,11 @@ export default function DocumentDetailScreen() {
       return;
     }
 
-    const amount = form.amount ? Number(form.amount.replace(',', '.')) : undefined;
+    const amount = form.amount.trim() ? parseMoneyInput(form.amount) : undefined;
+    if ((amount !== undefined && !Number.isFinite(amount)) || (form.documentDate && !isValidDate(form.documentDate))) {
+      Alert.alert(t('documents.saveErrorTitle'), t('forms.invalidFields'));
+      return;
+    }
     const input: Partial<DocumentInput> = {
       title: form.title.trim() || document.title,
       provider: form.provider.trim() || undefined,
@@ -98,10 +98,7 @@ export default function DocumentDetailScreen() {
       documentDate: form.documentDate || undefined,
       category: form.category,
       notes: form.notes.trim() || undefined,
-      tags: form.tags
-        .split(',')
-        .map((tag) => tag.trim())
-        .filter(Boolean),
+      tags: parseTags(form.tags),
     };
 
     setIsSaving(true);
@@ -159,7 +156,9 @@ export default function DocumentDetailScreen() {
         <Card className="border-fin-primary">
           <Stack>
             <SectionHeader title={t('documentDetail.analysis')} />
-            <Muted>{t('documentDetail.analysisSource', { source: t(analysisSourceLabelKey(document.analysis.source)) })}</Muted>
+            <Muted>
+              {t('documentDetail.analysisSource', { source: t(analysisSourceLabelKey(document.analysis.source)) })}
+            </Muted>
             <Body>{document.analysis.summary}</Body>
             <Box className="gap-1.5 rounded-fin bg-fin-surfaceAlt p-2.5">
               <Muted>{t('common.relevantExcerpt')}</Muted>
@@ -261,7 +260,8 @@ export default function DocumentDetailScreen() {
                   },
                 },
               ]);
-            }}>
+            }}
+          >
             {isDeleting ? t('documentDetail.deleting') : t('documentDetail.deleteDocument')}
           </Button>
         </Stack>

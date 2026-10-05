@@ -1,57 +1,12 @@
+import { rankDocuments } from '@/utils/document-search';
 import { translate } from '@/i18n';
 import type { AiQuestion, AppLanguage, FinancialDocument } from '@/types/finpilot';
 import { newId } from '@/utils/finance';
 
-const stopWords = new Set([
-  'the',
-  'and',
-  'for',
-  'with',
-  'this',
-  'that',
-  'have',
-  'does',
-  'what',
-  'which',
-  'from',
-  'your',
-  'about',
-]);
-
-function tokenize(value: string) {
-  return value
-    .toLowerCase()
-    .replace(/[^\p{L}0-9\s-]/gu, ' ')
-    .split(/\s+/)
-    .filter((word) => word.length > 2 && !stopWords.has(word));
-}
-
-function scoreDocument(question: string, document: FinancialDocument) {
-  const terms = tokenize(question);
-  const corpus = [
-    document.title,
-    document.category,
-    document.provider,
-    document.notes,
-    document.extractedText,
-    document.analysis?.summary,
-    ...(document.tags ?? []),
-  ]
-    .filter(Boolean)
-    .join(' ')
-    .toLowerCase();
-
-  return terms.reduce((score, term) => score + (corpus.includes(term) ? 1 : 0), 0);
-}
-
-function chooseDocument(question: string, documents: FinancialDocument[]) {
-  return documents
-    .map((document) => ({ document, score: scoreDocument(question, document) }))
-    .sort((a, b) => b.score - a.score)[0];
-}
-
 function getSummary(language: AppLanguage, document: FinancialDocument, fallbackKey: Parameters<typeof translate>[1]) {
-  return language === 'en' ? document.analysis?.summary ?? translate(language, fallbackKey) : translate(language, fallbackKey);
+  return language === 'en'
+    ? (document.analysis?.summary ?? translate(language, fallbackKey))
+    : translate(language, fallbackKey);
 }
 
 function buildAnswer(question: string, language: AppLanguage, document?: FinancialDocument, score = 0) {
@@ -93,9 +48,7 @@ function buildAnswer(question: string, language: AppLanguage, document?: Financi
       }),
       confidence: document.analysis?.confidence ?? ('medium' as const),
       excerpt:
-        document.analysis?.excerpt ??
-        document.extractedText ??
-        translate(language, 'ask.generic.excerptFallback'),
+        document.analysis?.excerpt ?? document.extractedText ?? translate(language, 'ask.generic.excerptFallback'),
       recommendation: translate(language, 'ask.coverage.recommendation'),
       source: 'local' as const,
     };
@@ -111,9 +64,7 @@ function buildAnswer(question: string, language: AppLanguage, document?: Financi
         : translate(language, 'ask.warranty.answer.unconfirmed', { title: document.title }),
       confidence: document.analysis?.warrantyUntil ? ('high' as const) : ('medium' as const),
       excerpt:
-        document.analysis?.excerpt ??
-        document.extractedText ??
-        translate(language, 'ask.generic.excerptFallback'),
+        document.analysis?.excerpt ?? document.extractedText ?? translate(language, 'ask.generic.excerptFallback'),
       recommendation: translate(language, 'ask.warranty.recommendation'),
       source: 'local' as const,
     };
@@ -135,10 +86,7 @@ function buildAnswer(question: string, language: AppLanguage, document?: Financi
       summary: getSummary(language, document, 'ask.generic.fallback'),
     }),
     confidence: score >= 3 ? ('high' as const) : ('medium' as const),
-    excerpt:
-      document.analysis?.excerpt ??
-      document.extractedText ??
-      translate(language, 'ask.generic.excerptFallback'),
+    excerpt: document.analysis?.excerpt ?? document.extractedText ?? translate(language, 'ask.generic.excerptFallback'),
     recommendation: translate(language, 'ask.generic.recommendation'),
     source: 'local' as const,
   };
@@ -146,7 +94,7 @@ function buildAnswer(question: string, language: AppLanguage, document?: Financi
 
 export const assistantService = {
   answerQuestion(question: string, documents: FinancialDocument[], language: AppLanguage): AiQuestion {
-    const match = chooseDocument(question, documents);
+    const match = rankDocuments(question, documents)[0];
     const response = buildAnswer(question, language, match?.document, match?.score);
 
     return {

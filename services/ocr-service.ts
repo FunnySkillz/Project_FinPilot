@@ -1,3 +1,4 @@
+import { canExtractWithCloud } from '@/utils/ai-permissions';
 import { File } from 'expo-file-system';
 
 import { translate } from '@/i18n';
@@ -17,10 +18,6 @@ function placeholder(document: FinancialDocument, language: AppLanguage, warning
     extractedText,
     analysis: warning ? { ...analysis, warnings: [...analysis.warnings, warning] } : analysis,
   };
-}
-
-function canUseCloud(ai: AiSettings) {
-  return ai.cloudEnabled && ai.cloudDocumentConsent && (ai.ocrMode === 'cloud' || ai.ocrMode === 'hybrid');
 }
 
 async function analyzeWithCloud(document: FinancialDocument, language: AppLanguage) {
@@ -67,7 +64,7 @@ export const ocrService = {
       }
     }
 
-    if (canUseCloud(ai)) {
+    if (canExtractWithCloud(ai)) {
       try {
         const cloudResult = await analyzeWithCloud(document, language);
         return {
@@ -86,7 +83,9 @@ export const ocrService = {
     return placeholder(
       document,
       language,
-      ai.ocrMode === 'cloud' ? translate(language, 'ai.warning.cloudDisabled') : translate(language, 'ai.warning.nativeUnavailable'),
+      ai.ocrMode === 'cloud'
+        ? translate(language, 'ai.warning.cloudDisabled')
+        : translate(language, 'ai.warning.nativeUnavailable'),
     );
   },
 };

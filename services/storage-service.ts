@@ -1,8 +1,8 @@
+import { todayString } from '@/utils/dates';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { seedState } from '@/data/seed-data';
-import { languagePreferenceService } from '@/services/language-preference';
-import { themePreferenceService } from '@/services/theme-preference';
+import { detectDeviceLanguage } from '@/i18n';
 import type {
   AppLanguage,
   AiConnectionCheck,
@@ -19,20 +19,10 @@ import type {
   PaymentMethod,
   ThemeMode,
 } from '@/types/finpilot';
-import { CATEGORIES, newId } from '@/utils/finance';
+import { CATEGORIES, PAYMENT_METHODS, newId } from '@/utils/finance';
 
 const STORAGE_KEY = 'finpilot.state.v1';
 export const CURRENT_STATE_VERSION = 4;
-
-const PAYMENT_METHODS: PaymentMethod[] = [
-  'cash',
-  'debit-card',
-  'credit-card',
-  'bank-transfer',
-  'paypal',
-  'apple-pay',
-  'other',
-];
 
 type LegacyExpenseKind = ExpenseKind | 'fixed' | 'variable';
 type LegacyExpenseCadence = ExpenseCadence | 'one-time';
@@ -113,8 +103,7 @@ function getLegacyExpenseCadence(value: unknown): LegacyExpenseCadence | undefin
 function normalizeExpense(expense: StoredExpense, index: number): Expense {
   const legacyKind = getLegacyExpenseKind(expense.kind);
   const legacyCadence = getLegacyExpenseCadence(expense.cadence);
-  const kind: ExpenseKind =
-    legacyCadence === 'one-time' || legacyKind === 'one-off' ? 'one-off' : 'recurring';
+  const kind: ExpenseKind = legacyCadence === 'one-time' || legacyKind === 'one-off' ? 'one-off' : 'recurring';
   const cadence = kind === 'recurring' ? (isExpenseCadence(legacyCadence) ? legacyCadence : 'monthly') : undefined;
   const amount = typeof expense.amount === 'number' ? expense.amount : Number(expense.amount);
   const tags = Array.isArray(expense.tags)
@@ -128,13 +117,9 @@ function normalizeExpense(expense: StoredExpense, index: number): Expense {
     ...(cadence ? { cadence } : {}),
     category: isCategory(expense.category) ? expense.category : 'Other',
     kind,
-    startDate:
-      typeof expense.startDate === 'string' && expense.startDate.trim()
-        ? expense.startDate
-        : new Date().toISOString().slice(0, 10),
+    startDate: typeof expense.startDate === 'string' && expense.startDate.trim() ? expense.startDate : todayString(),
     endDate: typeof expense.endDate === 'string' && expense.endDate.trim() ? expense.endDate : undefined,
-    merchant:
-      typeof expense.merchant === 'string' && expense.merchant.trim() ? expense.merchant : undefined,
+    merchant: typeof expense.merchant === 'string' && expense.merchant.trim() ? expense.merchant : undefined,
     paymentMethod: isPaymentMethod(expense.paymentMethod) ? expense.paymentMethod : undefined,
     tags,
     notes: typeof expense.notes === 'string' && expense.notes.trim() ? expense.notes : undefined,
@@ -166,9 +151,7 @@ function normalizeAiSettings(settings?: Partial<AiSettings>): AiSettings {
     cloudEnabled: Boolean(settings?.cloudEnabled),
     cloudDocumentConsent: Boolean(settings?.cloudDocumentConsent),
     ocrMode: isAiOcrMode(settings?.ocrMode) ? settings.ocrMode : DEFAULT_AI_SETTINGS.ocrMode,
-    lastConnectionCheck: isAiConnectionCheck(settings?.lastConnectionCheck)
-      ? settings.lastConnectionCheck
-      : undefined,
+    lastConnectionCheck: isAiConnectionCheck(settings?.lastConnectionCheck) ? settings.lastConnectionCheck : undefined,
   };
 }
 
@@ -247,8 +230,8 @@ function normalizeSettings(settings?: Partial<AppSettings>, sampleDefault = fals
     currency: settings?.currency ?? 'EUR',
     samplesSeeded: settings?.samplesSeeded ?? sampleDefault,
     hasCompletedOnboarding: settings?.hasCompletedOnboarding ?? sampleDefault,
-    language: languagePreferenceService.load(isLanguage(settings?.language) ? settings.language : undefined),
-    themeMode: themePreferenceService.load(isThemeMode(settings?.themeMode) ? settings.themeMode : undefined),
+    language: isLanguage(settings?.language) ? settings.language : detectDeviceLanguage(),
+    themeMode: isThemeMode(settings?.themeMode) ? settings.themeMode : 'system',
     appLockEnabled: settings?.appLockEnabled ?? false,
     sampleDataEnabled: settings?.sampleDataEnabled ?? sampleDefault,
     ai: normalizeAiSettings(settings?.ai),

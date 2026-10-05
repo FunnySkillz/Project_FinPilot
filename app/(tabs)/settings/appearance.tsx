@@ -1,20 +1,11 @@
+import { getThemeLabelKey } from '@/i18n';
 import { AppScreen, Stack } from '@/components/finpilot/app-screen';
 import { Card } from '@/components/finpilot/card';
 import { SegmentedControl } from '@/components/finpilot/controls';
 import { Body, H1, Muted } from '@/components/finpilot/text';
 import { useLanguage } from '@/context/language-context';
 import { useThemeMode } from '@/context/theme-mode-context';
-import type { ThemeMode, ThemeModeResolved } from '@/types/finpilot';
-
-function getThemeLabelKey(value: ThemeMode | ThemeModeResolved) {
-  if (value === 'light') {
-    return 'theme.light';
-  }
-  if (value === 'dark') {
-    return 'theme.dark';
-  }
-  return 'theme.system';
-}
+import type { ThemeMode } from '@/types/finpilot';
 
 export default function AppearanceScreen() {
   const { t } = useLanguage();

@@ -97,6 +97,11 @@ async function requestJson<T>(path: string, init?: RequestInit & { timeoutMs?: n
 }
 
 export const aiGatewayService = {
+  async importTransactions(input: { fileData: string; fileName: string; mimeType: string; language: AppLanguage; cloudConsent: true }) {
+    return requestJson<{ transactions: import('@/types/bank-import').BankTransaction[] }>('/v1/transactions/extract', {
+      method: 'POST', timeoutMs: 120000, body: JSON.stringify(input),
+    });
+  },
   async checkHealth(): Promise<AiConnectionCheck> {
     try {
       const response = await requestJson<{

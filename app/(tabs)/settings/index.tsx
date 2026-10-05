@@ -1,3 +1,4 @@
+import { parseMoneyInput } from '@/utils/form-input';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Bot, ChevronRight, Database, Languages, Palette, Scale, Shield, type LucideIcon } from 'lucide-react-native';
@@ -40,8 +41,7 @@ function SettingsEntry({
   mutedColor: string;
 }) {
   return (
-    <Pressable
-      onPress={() => onOpen(route)}>
+    <Pressable onPress={() => onOpen(route)}>
       <Card>
         <HStack className="justify-between">
           <HStack className="flex-1">
@@ -81,7 +81,7 @@ export default function SettingsIndexScreen() {
   };
 
   const updateNumberSetting = async (key: 'monthlyIncome' | 'emergencyBufferGoal', value: string) => {
-    const parsed = Number(value.replace(',', '.'));
+    const parsed = parseMoneyInput(value);
     if (!Number.isFinite(parsed) || parsed < 0) {
       return;
     }

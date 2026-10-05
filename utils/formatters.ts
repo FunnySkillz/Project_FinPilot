@@ -1,3 +1,4 @@
+import { parseLocalDate } from '@/utils/dates';
 import type { AppLocale } from '@/types/finpilot';
 
 export function formatCurrency(value: number, currency = 'EUR', locale: AppLocale = 'en-AT') {
@@ -13,8 +14,8 @@ export function formatDate(value?: string, locale: AppLocale = 'en-AT') {
     return locale.startsWith('de') ? 'Nicht gesetzt' : 'Not set';
   }
 
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
+  const date = parseLocalDate(value);
+  if (!date) {
     return value;
   }
 
@@ -22,22 +23,6 @@ export function formatDate(value?: string, locale: AppLocale = 'en-AT') {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
-  }).format(date);
-}
-
-export function formatShortDate(value?: string, locale: AppLocale = 'en-AT') {
-  if (!value) {
-    return locale.startsWith('de') ? 'Kein Datum' : 'No date';
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat(locale, {
-    day: '2-digit',
-    month: 'short',
   }).format(date);
 }
 

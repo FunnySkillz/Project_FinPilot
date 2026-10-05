@@ -1,3 +1,4 @@
+import { parseMoneyInput } from '@/utils/form-input';
 import { useState } from 'react';
 import { Alert } from 'react-native';
 import { ShieldCheck } from 'lucide-react-native';
@@ -42,12 +43,19 @@ export default function PurchaseScreen() {
   const [decision, setDecision] = useState<PurchaseDecision | undefined>(state.purchaseDecisions[0]);
 
   const submit = async () => {
-    const price = Number(form.price.replace(',', '.'));
-    const currentSavings = Number(form.currentSavings.replace(',', '.'));
-    const monthlyIncome = Number(form.monthlyIncome.replace(',', '.'));
-    const monthlyFinancingAmount = Number(form.monthlyFinancingAmount.replace(',', '.'));
+    const price = parseMoneyInput(form.price);
+    const currentSavings = parseMoneyInput(form.currentSavings);
+    const monthlyIncome = parseMoneyInput(form.monthlyIncome);
+    const monthlyFinancingAmount = parseMoneyInput(form.monthlyFinancingAmount);
 
-    if (!form.purchaseName.trim() || price <= 0 || currentSavings < 0 || monthlyIncome <= 0) {
+    if (
+      !form.purchaseName.trim() ||
+      ![price, currentSavings, monthlyIncome].every(Number.isFinite) ||
+      price <= 0 ||
+      currentSavings < 0 ||
+      monthlyIncome <= 0 ||
+      (form.purchaseType === 'financing' && (!Number.isFinite(monthlyFinancingAmount) || monthlyFinancingAmount <= 0))
+    ) {
       Alert.alert(t('purchase.validationTitle'), t('purchase.validationBody'));
       return;
     }
@@ -114,9 +122,7 @@ export default function PurchaseScreen() {
             <Field
               label={t('purchase.monthlyFinancingAmount')}
               value={form.monthlyFinancingAmount}
-              onChangeText={(monthlyFinancingAmount) =>
-                setForm((current) => ({ ...current, monthlyFinancingAmount }))
-              }
+              onChangeText={(monthlyFinancingAmount) => setForm((current) => ({ ...current, monthlyFinancingAmount }))}
               keyboardType="decimal-pad"
               placeholder="500"
             />
